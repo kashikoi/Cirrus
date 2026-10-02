@@ -1,0 +1,218 @@
+/* Tutorial page — reuses the app's sky theme (styles.css) with its own content styles. */
+
+.tutorial-body {
+  display: block;
+  padding: 40px 20px;
+}
+
+.tutorial {
+  margin: 0 auto;
+  max-width: 760px;
+}
+
+/* Hero */
+.tut-hero {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(210, 232, 252, 0.75));
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius);
+  padding: 32px;
+  margin-bottom: 28px;
+  box-shadow: 0 18px 40px rgba(90, 130, 170, 0.25);
+}
+
+.tut-hero__badge {
+  display: inline-block;
+  background: rgba(61, 134, 216, 0.16);
+  color: var(--accent-2);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.tut-hero__title {
+  margin: 0 0 12px;
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, #16324f 0%, #2f74bd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #16324f;
+}
+
+.tut-hero__text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #3a5a7d;
+}
+
+/* Jump-to nav */
+.tut-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.tut-nav a {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-2);
+  text-decoration: none;
+  transition: background 0.14s ease, transform 0.14s ease;
+}
+
+.tut-nav a:hover {
+  background: rgba(61, 134, 216, 0.14);
+  transform: translateY(-1px);
+}
+
+/* Steps */
+.tut-steps {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tut-step {
+  display: flex;
+  gap: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: 0 10px 24px rgba(90, 130, 170, 0.16);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.tut-step:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(90, 130, 170, 0.24);
+}
+
+.tut-step__num {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--accent-2);
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 14px rgba(43, 92, 150, 0.3);
+}
+
+.tut-step__body {
+  min-width: 0;
+}
+
+.tut-step__body h3 {
+  margin: 4px 0 8px;
+  font-size: 19px;
+  color: #1c3a5e;
+}
+
+.tut-step__body p {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #3a5a7d;
+}
+
+.tut-step__body p:last-child {
+  margin-bottom: 0;
+}
+
+.tut-note {
+  background: rgba(61, 134, 216, 0.09);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  font-size: 14px !important;
+}
+
+.tut-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tut-chip {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tut-outro {
+  text-align: center;
+  padding: 30px 10px 10px;
+}
+
+.tut-outro h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.tut-outro p {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+
+.tut-outro__btn {
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+html.dark .tut-hero,
+html.dark .tut-step {
+  background: rgba(22, 32, 58, 0.66);
+  border-color: rgba(146, 166, 196, 0.22);
+}
+
+html.dark .tut-hero__title {
+  background: linear-gradient(135deg, #dfe8f5 0%, #8fc1f0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+html.dark .tut-hero__text,
+html.dark .tut-step__body p,
+html.dark .tut-step__body h3 {
+  color: #dfe8f5;
+}
+
+html.dark .tut-nav a {
+  background: rgba(22, 32, 58, 0.6);
+  color: #8fc1f0;
+}
+
+html.dark .tut-chip {
+  background: rgba(22, 32, 58, 0.8);
+  color: #dfe8f5;
+}

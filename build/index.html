@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Fixed width forces phones/tablets to render the desktop layout zoomed out. -->
+  <meta name="viewport" content="width=1140" />
+  <title>Cirrus</title>
+  <meta name="theme-color" content="#5fa8e0" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.1" />
+  <script>
+    // Set the theme class before first paint so there's no light-mode flash.
+    try {
+      const preference = localStorage.getItem("cirrus.theme") || "day";
+      let effectiveTheme = preference === "dark" ? "night" : preference;
+      if (preference === "random") {
+        const themes = ["day", "twilight", "night"];
+        effectiveTheme = themes[Math.floor(Math.random() * themes.length)];
+        window.__cirrusInitialRandomTheme = effectiveTheme;
+      }
+      if (effectiveTheme === "night") document.documentElement.classList.add("dark", "night");
+      else if (effectiveTheme === "twilight") document.documentElement.classList.add("twilight");
+    } catch (e) {}
+
+    // Detect small screens early so the layout can switch before paint.
+    (function () {
+      if (window.innerWidth <= 720) {
+        document.documentElement.classList.add("mobile");
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="sky" aria-hidden="true">
+    <div class="stars-layer">
+      <div class="stars stars--sm"></div>
+      <div class="stars stars--lg"></div>
+    </div>
+    <div class="cloud cloud--1">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+    </div>
+    <div class="cloud cloud--2">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+    </div>
+    <div class="cloud cloud--3">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+    </div>
+    <div class="cloud cloud--4">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+    </div>
+  </div>
+
+  <div class="app">
+    <header class="app__header">
+      <div class="brand">
+        <h1 class="app__title">Cirrus <span class="app__version" id="app-version"></span></h1>
+        <p class="app__subtitle">A high-altitude view of every film you watch.</p>
+      </div>
+      <div class="app__actions">
+        <button type="button" class="btn btn--ghost" id="settings-btn">Settings</button>
+        <a class="btn btn--ghost" href="tutorial.html">Tutorial</a>
+      </div>
+    </header>
+
+    <section class="search-bar">
+      <input type="text" id="search-input" class="search-bar__input" placeholder="Search for a movie by title…" />
+      <button type="button" class="btn btn--primary" id="search-btn">Search</button>
+      <button type="button" class="btn btn--ghost" id="add-manual-btn">Add Manually</button>
+    </section>
+
+    <div id="search-results" class="search-results"></div>
+
+    <nav class="tabs" id="tabs">
+      <button type="button" class="tab tab--active" data-tab="watchlist">Watchlist</button>
+      <button type="button" class="tab" data-tab="watched">Watched</button>
+      <button type="button" class="tab" data-tab="discover">Discover</button>
+    </nav>
+
+    <section class="tab-panel tab-panel--active" id="panel-watchlist">
+      <div class="movie-grid" id="watchlist-grid"></div>
+      <p class="empty-state" id="watchlist-empty">Nothing on your watchlist yet. Search above or add a movie manually.</p>
+    </section>
+
+    <section class="tab-panel" id="panel-watched">
+      <div class="movie-grid" id="watched-grid"></div>
+      <p class="empty-state" id="watched-empty">You haven't logged any watched movies yet.</p>
+    </section>
+
+    <section class="tab-panel" id="panel-discover">
+      <p class="discover__hint" id="discover-hint">Add a free TMDB API key in Settings to see new releases here.</p>
+      <div class="movie-grid" id="discover-grid"></div>
+    </section>
+  </div>
+
+  <!-- Movie detail modal -->
+  <div class="modal" id="detail-modal">
+    <div class="modal__card modal__card--wide" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <div class="detail">
+        <img class="detail__poster" id="detail-poster" alt="" />
+        <div class="detail__body">
+          <h3 id="detail-title"></h3>
+          <p class="detail__meta" id="detail-meta"></p>
+          <p class="detail__overview" id="detail-overview"></p>
+
+          <div class="detail__ratings" id="detail-sourced-ratings"></div>
+
+          <label class="field">
+            <span>Your rating</span>
+            <div class="star-input" id="personal-rating-input"></div>
+          </label>
+
+          <label class="field">
+            <span>Status</span>
+            <select id="detail-status">
+              <option value="watchlist">Watchlist</option>
+              <option value="watched">Watched</option>
+            </select>
+          </label>
+
+          <label class="field" id="watched-date-field">
+            <span>Watched on</span>
+            <input type="date" id="detail-watched-date" />
+          </label>
+
+          <label class="field">
+            <span>Notes</span>
+            <textarea id="detail-notes" rows="3" placeholder="Personal notes…"></textarea>
+          </label>
+
+          <div class="detail__reviews" id="detail-reviews"></div>
+        </div>
+      </div>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--danger" id="detail-remove-btn">Remove</button>
+        <div class="modal__actions-right">
+          <button type="button" class="btn btn--ghost" id="detail-cancel-btn">Cancel</button>
+          <button type="button" class="btn btn--primary" id="detail-save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add manually modal -->
+  <div class="modal" id="manual-modal">
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="manual-title">
+      <h3 id="manual-title">Add a Movie</h3>
+      <label class="field">
+        <span>Title</span>
+        <input type="text" id="manual-title-input" />
+      </label>
+      <label class="field">
+        <span>Year</span>
+        <input type="number" id="manual-year-input" placeholder="e.g. 2024" />
+      </label>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="manual-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn--primary" id="manual-save-btn">Add to Watchlist</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal" id="settings-modal">
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h3 id="settings-title">Settings</h3>
+
+      <div class="settings-row">
+        <span>Atmosphere</span>
+        <div class="theme-picker" id="theme-picker">
+          <button type="button" class="theme-chip" data-theme-val="day">Day</button>
+          <button type="button" class="theme-chip" data-theme-val="twilight">Twilight</button>
+          <button type="button" class="theme-chip" data-theme-val="night">Night</button>
+          <button type="button" class="theme-chip" data-theme-val="random">Random</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>TMDB API key <small>(for search &amp; new releases, free at themoviedb.org)</small></span>
+        <input type="password" id="tmdb-key-input" autocomplete="off" />
+      </label>
+
+      <label class="field">
+        <span>OMDb API key <small>(optional, for IMDb/Rotten Tomatoes/Metacritic ratings)</small></span>
+        <input type="password" id="omdb-key-input" autocomplete="off" />
+      </label>
+
+      <div class="settings-row">
+        <span>Backup</span>
+        <div class="settings-row__actions">
+          <button type="button" class="btn btn--ghost btn--small" id="export-btn">Export JSON</button>
+          <button type="button" class="btn btn--ghost btn--small" id="import-btn">Import JSON</button>
+          <input type="file" id="import-file" accept="application/json" hidden />
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <span>Danger zone</span>
+        <button type="button" class="btn btn--danger btn--small" id="clear-data-btn">Clear All Data</button>
+      </div>
+
+      <button type="button" class="link-btn" id="about-link">About Cirrus</button>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--primary" id="settings-close-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About modal -->
+  <div class="modal" id="about-modal">
+    <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
+      <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
+      <h3 id="about-modal-title">Cirrus</h3>
+      <p class="about-modal__version">Version 2026.10.02.1</p>
+      <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
+      <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
+    </div>
+  </div>
+
+  <script src="app.js?v=2026.10.02.1"></script>
+</body>
+</html>

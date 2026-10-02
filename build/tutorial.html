@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1140" />
+  <title>Cirrus &ndash; Tutorial</title>
+  <meta name="theme-color" content="#5fa8e0" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.1" />
+  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.1" />
+  <script>
+    // Set the theme class before first paint so there's no light-mode flash.
+    try {
+      if (localStorage.getItem("cirrus.theme") === "dark") document.documentElement.classList.add("dark");
+    } catch (e) {}
+  </script>
+</head>
+<body class="tutorial-body">
+  <div class="sky" aria-hidden="true">
+    <div class="stars-layer">
+      <div class="stars stars--sm"></div>
+      <div class="stars stars--lg"></div>
+    </div>
+    <div class="cloud cloud--1">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+    </div>
+    <div class="cloud cloud--2">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+    </div>
+    <div class="cloud cloud--3">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+    </div>
+    <div class="cloud cloud--4">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+    </div>
+  </div>
+
+  <main class="app tutorial">
+    <header class="app__header">
+      <div class="brand">
+        <img class="brand__mark" src="icon.svg" alt="" width="56" height="56" />
+        <div class="brand__text">
+          <h1 class="app__title">Cirrus</h1>
+          <p class="app__subtitle">The 3-minute tour.</p>
+        </div>
+      </div>
+      <div class="app__actions">
+        <button type="button" class="icon-btn" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">&#127769;</button>
+        <a class="btn btn--tutorial" href="index.html">&larr; Back to app</a>
+      </div>
+    </header>
+
+    <section class="tut-hero">
+      <div class="tut-hero__badge">Welcome aboard</div>
+      <h2 class="tut-hero__title">Every film you watch, in one high-altitude view.</h2>
+      <p class="tut-hero__text">
+        Cirrus keeps your watchlist, your watch history, and your own ratings in one calm place
+        &mdash; no accounts, no backend, nothing to sync. Add movies by searching or typing them
+        in by hand, log what you thought once you've watched them, and compare your taste against
+        the critics whenever you're curious. Here's the whole thing in about three minutes.
+      </p>
+    </section>
+
+    <nav class="tut-nav" aria-label="Jump to a topic">
+      <a href="#step-1">Add a movie</a>
+      <a href="#step-2">Watchlist &amp; Watched</a>
+      <a href="#step-3">Your rating</a>
+      <a href="#step-4">Sourced ratings</a>
+      <a href="#step-5">Reviews</a>
+      <a href="#step-6">Discover new releases</a>
+      <a href="#step-7">Notes &amp; history</a>
+      <a href="#step-8">Backup &amp; settings</a>
+    </nav>
+
+    <ol class="tut-steps">
+      <li class="tut-step" id="step-1">
+        <div class="tut-step__num">1</div>
+        <div class="tut-step__body">
+          <h3>Add a movie</h3>
+          <p>
+            Type a title into the search bar and pick it from the results &mdash; Cirrus pulls in
+            the poster, year, and overview automatically. No TMDB key yet, or can't find something
+            obscure? Hit <strong>Add Manually</strong> instead and just type the title and year.
+          </p>
+          <p class="tut-note">
+            Search and auto-filled details need a free TMDB API key, added once in
+            <strong>Settings</strong>. Everything else works fine without one.
+          </p>
+        </div>
+      </li>
+
+      <li class="tut-step" id="step-2">
+        <div class="tut-step__num">2</div>
+        <div class="tut-step__body">
+          <h3>Watchlist and Watched</h3>
+          <p>
+            Every movie starts on your <strong>Watchlist</strong>. Open it and flip the status to
+            <strong>Watched</strong> once you've seen it, with the date you watched it &mdash; so
+            years from now you're never left wondering whether you've already seen something.
+          </p>
+          <div class="tut-chips">
+            <span class="tut-chip">🎬 Watchlist</span>
+            <span class="tut-chip">✅ Watched</span>
+            <span class="tut-chip">🔭 Discover</span>
+          </div>
+        </div>
+      </li>
+
+      <li class="tut-step" id="step-3">
+        <div class="tut-step__num">3</div>
+        <div class="tut-step__body">
+          <h3>Rate it yourself</h3>
+          <p>
+            Open any movie's details and tap the stars to set your own 1&ndash;5 rating. It shows
+            right on the card, so your whole collection is scannable at a glance.
+          </p>
+        </div>
+      </li>
+
+      <li class="tut-step" id="step-4">
+        <div class="tut-step__num">4</div>
+        <div class="tut-step__body">
+          <h3>Compare against the critics</h3>
+          <p>
+            Each movie's details show a TMDB score automatically. Add a free OMDb API key in
+            <strong>Settings</strong> too, and Cirrus pulls in IMDb, Rotten Tomatoes, and
+            Metacritic ratings alongside it &mdash; so you can see exactly how your take lines up
+            with your favorite sources.
+          </p>
+        </div>
+      </li>
+
+      <li class="tut-step" id="step-5">
+        <div class="tut-step__num">5</div>
+        <div class="tut-step__body">
+          <h3>Read a few reviews</h3>
+          <p>
+            A handful of written reviews are pulled into each movie's detail view when a TMDB key
+            is set, so you can get a feel for the reaction without leaving the app.
+          </p>
+        </div>
+      </li>
+
+      <li class="tut-step" id="step-6">
+        <div class="tut-step__num">6</div>
+        <div class="tut-step__body">
+          <h3>Discover new releases</h3>
+          <p>
+            The <strong>Discover</strong> tab shows what's currently in theaters, straight from
+            TMDB. Tap anything there to drop it onto your watchlist.
+          </p>
+        </div>
+      </li>
+
+      <li class="tut-step" id="step-7">
+        <div class="tut-step__num">7</div>
+        <div class="tut-step__body">
+          <h3>Keep your own notes</h3>
+          <p>
+            Every movie has a free-text notes field in its details &mdash; jot down who you
+            watched it with, a favorite line, or why you gave it the rating you did.
+          </p>
+        </div>
+      </li>
+
+      <li class="tut-step" id="step-8">
+        <div class="tut-step__num">8</div>
+        <div class="tut-step__body">
+          <h3>Back up your collection</h3>
+          <p>
+            Cirrus stores everything only in this browser's local storage. Use
+            <strong>Export JSON</strong> in Settings regularly to save a backup, and
+            <strong>Import JSON</strong> to restore it anywhere. Settings also has day, twilight,
+            and night atmospheres to match your sky.
+          </p>
+        </div>
+      </li>
+    </ol>
+
+    <section class="tut-outro">
+      <h2>That's the whole app.</h2>
+      <p>Go add the first movie to your watchlist.</p>
+      <a class="btn tut-outro__btn" href="index.html">Take me back &rarr;</a>
+    </section>
+  </main>
+
+  <script>
+    // Tutorial page has no app.js; just enough logic to flip + persist the theme.
+    (function () {
+      const btn = document.getElementById("theme-toggle");
+      const sync = () => { btn.textContent = document.documentElement.classList.contains("dark") ? "\u2600\uFE0F" : "\uD83C\uDF19"; };
+      sync();
+      btn.addEventListener("click", () => {
+        const next = document.documentElement.classList.toggle("dark") ? "dark" : "light";
+        try { localStorage.setItem("cirrus.theme", next); } catch (e) {}
+        sync();
+      });
+    })();
+  </script>
+</body>
+</html>
