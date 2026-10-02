@@ -8,8 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.02.3" />
-  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.3" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.4" />
+  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.4" />
   <script>
     // Set the theme class before first paint so there's no flash of the wrong atmosphere.
     try {
@@ -62,6 +62,54 @@
       <span class="cloud__wisp cloud__wisp--5"></span>
       <span class="cloud__wisp cloud__wisp--6"></span>
     </div>
+    <div class="cloud cloud--5">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--6">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--7">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--8">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--9">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--10">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
 
     <div class="lake-layer">
       <svg class="lake-svg" viewBox="0 0 1600 420" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
@@ -81,34 +129,62 @@
             <stop offset="1" stop-color="#0a1226"/>
           </linearGradient>
           <symbol id="reedTuft" viewBox="0 0 60 120">
-            <path d="M10,120 Q5,70 15,20"/>
-            <path d="M30,120 Q28,60 34,10"/>
-            <path d="M48,120 Q52,65 42,25"/>
+            <path class="lake-reed" d="M10,120 Q5,70 15,20"/>
+            <path class="lake-reed" d="M30,120 Q28,60 34,10"/>
+            <path class="lake-reed" d="M48,120 Q52,65 42,25"/>
+          </symbol>
+          <symbol id="shoreHouse" viewBox="0 0 48 34">
+            <rect class="house-body" x="8" y="15" width="32" height="18"/>
+            <path class="house-roof" d="M4,16 L24,4 L44,16 Z"/>
           </symbol>
         </defs>
-        <g class="lake-mountains">
-          <path class="lake-mountain" d="M60,70 L160,0 L260,70 Z"/>
-          <path class="lake-mountain" d="M900,70 L1000,10 L1100,70 Z"/>
-          <path class="lake-mountain" d="M1250,70 L1340,25 L1430,70 Z"/>
+
+        <rect class="lake-haze" x="0" y="118" width="1600" height="46"/>
+
+        <path class="hill hill--far" d="M0,150 C150,120 320,132 470,124 C640,114 800,134 960,124 C1120,114 1300,132 1450,122 C1520,118 1560,124 1600,120 L1600,178 L0,178 Z"/>
+
+        <path class="hill hill--mid" d="M0,162 C130,140 260,132 400,148 C540,162 650,144 790,154 C930,164 1060,142 1200,154 C1340,164 1470,146 1600,156 L1600,178 L0,178 Z"/>
+        <g class="hill-contour">
+          <path d="M40,154 C180,136 300,152 440,152"/>
+          <path d="M520,158 C660,148 760,158 900,158"/>
+          <path d="M980,156 C1120,146 1240,158 1380,154"/>
         </g>
-        <path class="lake-treeline" d="M0,140 L0,92 L40,55 L80,85 L120,62 L160,90 L200,50 L240,92 L280,55 L320,85 L360,62 L400,90 L440,50 L480,92 L520,55 L560,85 L600,62 L640,90 L680,50 L720,92 L760,55 L800,85 L840,62 L880,90 L920,50 L960,92 L1000,55 L1040,85 L1080,62 L1120,90 L1160,50 L1200,92 L1240,55 L1280,85 L1320,62 L1360,90 L1400,50 L1440,92 L1480,55 L1520,85 L1560,62 L1600,90 L1600,140 Z"/>
-        <rect class="lake-water" x="0" y="140" width="1600" height="160"/>
+
+        <path class="hill hill--near" d="M0,178 L0,150 C70,112 170,92 290,100 C390,108 470,130 548,152 C600,166 640,172 690,174 L690,178 Z"/>
+        <g class="hill-contour hill-contour--near">
+          <path d="M30,142 C110,116 200,106 300,112"/>
+          <path d="M60,156 C150,132 240,124 340,130"/>
+          <path d="M120,168 C210,152 300,146 400,152"/>
+        </g>
+
+        <g class="shore-houses">
+          <use href="#shoreHouse" x="690" y="150" width="30" height="21"/>
+          <use href="#shoreHouse" x="742" y="153" width="26" height="18"/>
+          <use href="#shoreHouse" x="800" y="150" width="33" height="23"/>
+          <use href="#shoreHouse" x="866" y="154" width="24" height="17"/>
+          <use href="#shoreHouse" x="938" y="152" width="28" height="20"/>
+          <use href="#shoreHouse" x="1014" y="155" width="23" height="16"/>
+        </g>
+
+        <rect class="lake-water" x="0" y="172" width="1600" height="150"/>
         <g class="lake-ripples">
-          <path class="lake-ripple" stroke-width="2" d="M0 185 Q100 179 200 185 T400 185 T600 185 T800 185 T1000 185 T1200 185 T1400 185 T1600 185"/>
-          <path class="lake-ripple" stroke-width="1.6" d="M0 240 Q100 234 200 240 T400 240 T600 240 T800 240 T1000 240 T1200 240 T1400 240 T1600 240"/>
+          <path class="lake-ripple" stroke-width="2" d="M0 205 Q100 199 200 205 T400 205 T600 205 T800 205 T1000 205 T1200 205 T1400 205 T1600 205"/>
+          <path class="lake-ripple" stroke-width="1.7" d="M0 248 Q110 242 220 248 T440 248 T660 248 T880 248 T1100 248 T1320 248 T1540 248 T1760 248"/>
+          <path class="lake-ripple" stroke-width="1.4" d="M0 290 Q120 284 240 290 T480 290 T720 290 T960 290 T1200 290 T1440 290 T1680 290"/>
         </g>
-        <path class="lake-bank" d="M0,420 L0,330 Q100,310 200,325 Q320,340 420,315 Q540,300 650,320 Q760,340 880,318 Q1000,300 1120,322 Q1240,344 1360,316 Q1480,300 1600,320 L1600,420 Z"/>
+
+        <path class="lake-bank" d="M0,420 L0,332 Q110,312 210,326 Q330,340 430,316 Q550,300 660,320 Q770,340 890,318 Q1010,300 1130,322 Q1250,344 1370,316 Q1490,300 1600,320 L1600,420 Z"/>
         <g class="lake-reeds">
-          <use href="#reedTuft" x="-20" y="270" width="60" height="120"/>
-          <use href="#reedTuft" x="130" y="280" width="50" height="100"/>
-          <use href="#reedTuft" x="300" y="290" width="55" height="110"/>
-          <use href="#reedTuft" x="480" y="275" width="50" height="100"/>
-          <use href="#reedTuft" x="660" y="292" width="55" height="110"/>
-          <use href="#reedTuft" x="840" y="278" width="50" height="100"/>
-          <use href="#reedTuft" x="1020" y="290" width="55" height="110"/>
-          <use href="#reedTuft" x="1200" y="276" width="50" height="100"/>
-          <use href="#reedTuft" x="1380" y="288" width="55" height="110"/>
-          <use href="#reedTuft" x="1550" y="276" width="50" height="100"/>
+          <use href="#reedTuft" x="-20" y="276" width="60" height="120"/>
+          <use href="#reedTuft" x="150" y="286" width="50" height="100"/>
+          <use href="#reedTuft" x="320" y="296" width="55" height="110"/>
+          <use href="#reedTuft" x="500" y="280" width="50" height="100"/>
+          <use href="#reedTuft" x="690" y="298" width="55" height="110"/>
+          <use href="#reedTuft" x="880" y="284" width="50" height="100"/>
+          <use href="#reedTuft" x="1060" y="296" width="55" height="110"/>
+          <use href="#reedTuft" x="1250" y="282" width="50" height="100"/>
+          <use href="#reedTuft" x="1430" y="294" width="55" height="110"/>
+          <use href="#reedTuft" x="1560" y="282" width="50" height="100"/>
         </g>
       </svg>
     </div>
