@@ -8,8 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.02.2" />
-  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.2" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.3" />
+  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.3" />
   <script>
     // Set the theme class before first paint so there's no flash of the wrong atmosphere.
     try {
@@ -64,7 +64,7 @@
     </div>
 
     <div class="lake-layer">
-      <svg class="lake-svg" viewBox="0 0 1600 360" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <svg class="lake-svg" viewBox="0 0 1600 420" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="lakeDayGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#cfe9f2"/>
@@ -80,29 +80,35 @@
             <stop offset="0" stop-color="#1b2a4a"/>
             <stop offset="1" stop-color="#0a1226"/>
           </linearGradient>
+          <symbol id="reedTuft" viewBox="0 0 60 120">
+            <path d="M10,120 Q5,70 15,20"/>
+            <path d="M30,120 Q28,60 34,10"/>
+            <path d="M48,120 Q52,65 42,25"/>
+          </symbol>
         </defs>
-        <rect class="lake-water" x="0" y="60" width="1600" height="300"/>
+        <g class="lake-mountains">
+          <path class="lake-mountain" d="M60,70 L160,0 L260,70 Z"/>
+          <path class="lake-mountain" d="M900,70 L1000,10 L1100,70 Z"/>
+          <path class="lake-mountain" d="M1250,70 L1340,25 L1430,70 Z"/>
+        </g>
+        <path class="lake-treeline" d="M0,140 L0,92 L40,55 L80,85 L120,62 L160,90 L200,50 L240,92 L280,55 L320,85 L360,62 L400,90 L440,50 L480,92 L520,55 L560,85 L600,62 L640,90 L680,50 L720,92 L760,55 L800,85 L840,62 L880,90 L920,50 L960,92 L1000,55 L1040,85 L1080,62 L1120,90 L1160,50 L1200,92 L1240,55 L1280,85 L1320,62 L1360,90 L1400,50 L1440,92 L1480,55 L1520,85 L1560,62 L1600,90 L1600,140 Z"/>
+        <rect class="lake-water" x="0" y="140" width="1600" height="160"/>
         <g class="lake-ripples">
-          <path class="lake-ripple" stroke-width="2" d="M0 110 Q100 104 200 110 T400 110 T600 110 T800 110 T1000 110 T1200 110 T1400 110 T1600 110"/>
-          <path class="lake-ripple" stroke-width="2" d="M0 160 Q100 154 200 160 T400 160 T600 160 T800 160 T1000 160 T1200 160 T1400 160 T1600 160"/>
-          <path class="lake-ripple" stroke-width="1.6" d="M0 220 Q100 214 200 220 T400 220 T600 220 T800 220 T1000 220 T1200 220 T1400 220 T1600 220"/>
-          <path class="lake-ripple" stroke-width="1.4" d="M0 280 Q100 274 200 280 T400 280 T600 280 T800 280 T1000 280 T1200 280 T1400 280 T1600 280"/>
+          <path class="lake-ripple" stroke-width="2" d="M0 185 Q100 179 200 185 T400 185 T600 185 T800 185 T1000 185 T1200 185 T1400 185 T1600 185"/>
+          <path class="lake-ripple" stroke-width="1.6" d="M0 240 Q100 234 200 240 T400 240 T600 240 T800 240 T1000 240 T1200 240 T1400 240 T1600 240"/>
         </g>
-        <g class="lake-island">
-          <ellipse class="lake-island-base" cx="800" cy="62" rx="260" ry="14"/>
-          <ellipse class="lake-island-trees" cx="720" cy="46" rx="80" ry="28"/>
-          <ellipse class="lake-island-trees" cx="800" cy="38" rx="110" ry="34"/>
-          <ellipse class="lake-island-trees" cx="890" cy="48" rx="70" ry="26"/>
-        </g>
-        <g class="lake-shore">
-          <ellipse class="lake-rock" cx="60" cy="300" rx="22" ry="10"/>
-          <ellipse class="lake-rock" cx="110" cy="320" rx="16" ry="8"/>
-          <ellipse class="lake-rock" cx="200" cy="312" rx="14" ry="7"/>
-          <path class="lake-reed" d="M40 360 Q30 300 20 250"/>
-          <path class="lake-reed" d="M70 360 Q65 290 55 235"/>
-          <path class="lake-reed" d="M100 360 Q98 300 92 260"/>
-          <path class="lake-reed" d="M150 360 Q148 310 142 270"/>
-          <path class="lake-reed" d="M190 360 Q188 315 184 280"/>
+        <path class="lake-bank" d="M0,420 L0,330 Q100,310 200,325 Q320,340 420,315 Q540,300 650,320 Q760,340 880,318 Q1000,300 1120,322 Q1240,344 1360,316 Q1480,300 1600,320 L1600,420 Z"/>
+        <g class="lake-reeds">
+          <use href="#reedTuft" x="-20" y="270" width="60" height="120"/>
+          <use href="#reedTuft" x="130" y="280" width="50" height="100"/>
+          <use href="#reedTuft" x="300" y="290" width="55" height="110"/>
+          <use href="#reedTuft" x="480" y="275" width="50" height="100"/>
+          <use href="#reedTuft" x="660" y="292" width="55" height="110"/>
+          <use href="#reedTuft" x="840" y="278" width="50" height="100"/>
+          <use href="#reedTuft" x="1020" y="290" width="55" height="110"/>
+          <use href="#reedTuft" x="1200" y="276" width="50" height="100"/>
+          <use href="#reedTuft" x="1380" y="288" width="55" height="110"/>
+          <use href="#reedTuft" x="1550" y="276" width="50" height="100"/>
         </g>
       </svg>
     </div>

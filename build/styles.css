@@ -744,21 +744,47 @@ html.mobile .detail {
   }
 }
 
-/* Lake + distant tree-lined island at the horizon */
+/* Lake with a full pine tree-lined horizon and grassy foreground bank */
 .lake-layer {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 36vh;
-  min-height: 220px;
-  max-height: 360px;
+  height: 40vh;
+  min-height: 240px;
+  max-height: 400px;
 }
 
 .lake-svg {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.lake-mountain {
+  fill: #eef3f6;
+  opacity: 0.9;
+}
+
+html.twilight .lake-mountain {
+  fill: #e7cdd3;
+}
+
+html.dark .lake-mountain {
+  fill: #26324a;
+  opacity: 0.7;
+}
+
+.lake-treeline {
+  fill: #1f3a28;
+}
+
+html.twilight .lake-treeline {
+  fill: #3d2f45;
+}
+
+html.dark .lake-treeline {
+  fill: #0c1310;
 }
 
 .lake-water {
@@ -784,38 +810,28 @@ html.dark .lake-ripple {
   opacity: 0.16;
 }
 
-.lake-island-base,
-.lake-island-trees {
-  fill: #2f4a39;
+.lake-bank {
+  fill: #3f6b3f;
 }
 
-html.twilight .lake-island-base,
-html.twilight .lake-island-trees {
-  fill: #493a52;
+html.twilight .lake-bank {
+  fill: #4a3d52;
 }
 
-html.dark .lake-island-base,
-html.dark .lake-island-trees {
-  fill: #141f2a;
+html.dark .lake-bank {
+  fill: #152018;
 }
 
 .lake-reed {
-  stroke: #35553f;
-  stroke-width: 3;
+  stroke: #2c4a30;
+  stroke-width: 4;
+  stroke-linecap: round;
   fill: none;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 html.dark .lake-reed {
-  stroke: #192920;
-}
-
-.lake-rock {
-  fill: #5c6b73;
-}
-
-html.dark .lake-rock {
-  fill: #1c2630;
+  stroke: #0d1a10;
 }
 
 /* Foreground birch tree, cropped against the left edge (desktop only — see media query) */
