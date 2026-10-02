@@ -610,75 +610,123 @@ html.mobile .detail {
 
 .cloud__wisp--1 {
   width: 100%;
-  height: 16%;
-  top: 8%;
+  height: 13%;
+  top: 4%;
   left: 0;
-  transform: rotate(-4deg);
-  opacity: 0.9;
+  transform: rotate(-6deg);
+  opacity: 0.92;
 }
 
 .cloud__wisp--2 {
-  width: 86%;
-  height: 14%;
-  top: 32%;
-  left: 8%;
-  transform: rotate(3deg);
-  opacity: 0.75;
+  width: 90%;
+  height: 12%;
+  top: 20%;
+  left: 6%;
+  transform: rotate(4deg);
+  opacity: 0.82;
 }
 
 .cloud__wisp--3 {
-  width: 70%;
-  height: 12%;
-  top: 54%;
-  left: 16%;
-  transform: rotate(-2deg);
-  opacity: 0.6;
+  width: 78%;
+  height: 11%;
+  top: 36%;
+  left: 14%;
+  transform: rotate(-3deg);
+  opacity: 0.7;
 }
 
 .cloud__wisp--4 {
-  width: 55%;
-  height: 10%;
+  width: 64%;
+  height: 9%;
+  top: 50%;
+  left: 20%;
+  transform: rotate(5deg);
+  opacity: 0.55;
+}
+
+.cloud__wisp--5 {
+  width: 50%;
+  height: 8%;
+  top: 62%;
+  left: 28%;
+  transform: rotate(-4deg);
+  opacity: 0.42;
+}
+
+.cloud__wisp--6 {
+  width: 38%;
+  height: 7%;
   top: 72%;
-  left: 24%;
-  transform: rotate(4deg);
-  opacity: 0.45;
+  left: 34%;
+  transform: rotate(6deg);
+  opacity: 0.3;
 }
 
 .cloud--1 {
-  width: 480px;
-  height: 120px;
-  top: 10%;
-  left: -540px;
+  width: 560px;
+  height: 130px;
+  top: 6%;
+  left: -620px;
   animation: drift 135s linear infinite;
 }
 
 .cloud--2 {
-  width: 400px;
-  height: 100px;
-  top: 32%;
-  left: -440px;
+  width: 460px;
+  height: 110px;
+  top: 20%;
+  left: -500px;
   opacity: 0.85;
   animation: drift 175s linear infinite;
   animation-delay: -44s;
 }
 
 .cloud--3 {
-  width: 560px;
-  height: 140px;
-  top: 55%;
-  left: -620px;
+  width: 640px;
+  height: 150px;
+  top: 34%;
+  left: -700px;
   animation: drift 210s linear infinite;
   animation-delay: -112s;
 }
 
 .cloud--4 {
-  width: 420px;
-  height: 110px;
-  top: 76%;
-  left: -480px;
+  width: 480px;
+  height: 115px;
+  top: 46%;
+  left: -540px;
   opacity: 0.88;
   animation: drift 155s linear infinite;
   animation-delay: -80s;
+}
+
+.cloud--5 {
+  width: 600px;
+  height: 140px;
+  top: 58%;
+  left: -660px;
+  opacity: 0.8;
+  animation: drift 190s linear infinite;
+  animation-delay: -20s;
+}
+
+.cloud--6 {
+  width: 420px;
+  height: 100px;
+  top: 16%;
+  left: -460px;
+  opacity: 0.7;
+  animation: drift 160s linear infinite;
+  animation-delay: -130s;
+}
+
+.cloud--7 {
+  width: 520px;
+  height: 120px;
+  top: 40%;
+  left: -580px;
+  opacity: 0.75;
+  animation: drift 225s linear infinite;
+  animation-delay: -60s;
 }
 
 @keyframes drift {
@@ -694,6 +742,150 @@ html.mobile .detail {
   .cloud {
     animation: none !important;
   }
+}
+
+/* Lake + distant tree-lined island at the horizon */
+.lake-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 36vh;
+  min-height: 220px;
+  max-height: 360px;
+}
+
+.lake-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.lake-water {
+  fill: url(#lakeDayGrad);
+}
+
+html.twilight .lake-water {
+  fill: url(#lakeTwilightGrad);
+}
+
+html.dark .lake-water {
+  fill: url(#lakeNightGrad);
+}
+
+.lake-ripple {
+  stroke: #ffffff;
+  fill: none;
+  opacity: 0.22;
+}
+
+html.dark .lake-ripple {
+  stroke: #9fc3ea;
+  opacity: 0.16;
+}
+
+.lake-island-base,
+.lake-island-trees {
+  fill: #2f4a39;
+}
+
+html.twilight .lake-island-base,
+html.twilight .lake-island-trees {
+  fill: #493a52;
+}
+
+html.dark .lake-island-base,
+html.dark .lake-island-trees {
+  fill: #141f2a;
+}
+
+.lake-reed {
+  stroke: #35553f;
+  stroke-width: 3;
+  fill: none;
+  opacity: 0.85;
+}
+
+html.dark .lake-reed {
+  stroke: #192920;
+}
+
+.lake-rock {
+  fill: #5c6b73;
+}
+
+html.dark .lake-rock {
+  fill: #1c2630;
+}
+
+/* Foreground birch tree, cropped against the left edge (desktop only — see media query) */
+.birch-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 16vw;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.birch-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.birch-trunk {
+  fill: #e7e2d6;
+  opacity: 0.85;
+}
+
+.birch-bark {
+  fill: #2a2a28;
+  opacity: 0.8;
+}
+
+.birch-leaves {
+  fill: #2c4a33;
+  opacity: 0.68;
+}
+
+.birch-leaves--highlight {
+  fill: #6a9465;
+  opacity: 0.18;
+}
+
+@media (max-width: 1100px) {
+  .birch-layer {
+    display: none;
+  }
+}
+
+html.twilight .birch-trunk {
+  fill: #d9c9bf;
+}
+
+html.twilight .birch-leaves {
+  fill: #493a52;
+}
+
+html.twilight .birch-leaves--highlight {
+  fill: #c98fa0;
+  opacity: 0.2;
+}
+
+html.dark .birch-trunk {
+  fill: #8d97a6;
+  opacity: 0.6;
+}
+
+html.dark .birch-leaves {
+  fill: #121c27;
+}
+
+html.dark .birch-leaves--highlight {
+  fill: #27384a;
+  opacity: 0.2;
 }
 
 /* Starfield: two tiled layers of dots, hidden until dark mode is on */

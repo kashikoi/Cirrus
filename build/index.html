@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.02.1" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.2" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -43,24 +43,116 @@
       <span class="cloud__wisp cloud__wisp--2"></span>
       <span class="cloud__wisp cloud__wisp--3"></span>
       <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
     </div>
     <div class="cloud cloud--2">
       <span class="cloud__wisp cloud__wisp--1"></span>
       <span class="cloud__wisp cloud__wisp--2"></span>
       <span class="cloud__wisp cloud__wisp--3"></span>
       <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
     </div>
     <div class="cloud cloud--3">
       <span class="cloud__wisp cloud__wisp--1"></span>
       <span class="cloud__wisp cloud__wisp--2"></span>
       <span class="cloud__wisp cloud__wisp--3"></span>
       <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
     </div>
     <div class="cloud cloud--4">
       <span class="cloud__wisp cloud__wisp--1"></span>
       <span class="cloud__wisp cloud__wisp--2"></span>
       <span class="cloud__wisp cloud__wisp--3"></span>
       <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--5">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--6">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+    <div class="cloud cloud--7">
+      <span class="cloud__wisp cloud__wisp--1"></span>
+      <span class="cloud__wisp cloud__wisp--2"></span>
+      <span class="cloud__wisp cloud__wisp--3"></span>
+      <span class="cloud__wisp cloud__wisp--4"></span>
+      <span class="cloud__wisp cloud__wisp--5"></span>
+      <span class="cloud__wisp cloud__wisp--6"></span>
+    </div>
+
+    <!-- Calm lake with a distant tree-lined island at the horizon -->
+    <div class="lake-layer">
+      <svg class="lake-svg" viewBox="0 0 1600 360" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="lakeDayGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#cfe9f2"/>
+            <stop offset="0.4" stop-color="#8fc3dd"/>
+            <stop offset="1" stop-color="#3f7fa8"/>
+          </linearGradient>
+          <linearGradient id="lakeTwilightGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f3c9a0"/>
+            <stop offset="0.45" stop-color="#c98fa0"/>
+            <stop offset="1" stop-color="#4a4f8f"/>
+          </linearGradient>
+          <linearGradient id="lakeNightGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1b2a4a"/>
+            <stop offset="1" stop-color="#0a1226"/>
+          </linearGradient>
+        </defs>
+        <rect class="lake-water" x="0" y="60" width="1600" height="300"/>
+        <g class="lake-ripples">
+          <path class="lake-ripple" stroke-width="2" d="M0 110 Q100 104 200 110 T400 110 T600 110 T800 110 T1000 110 T1200 110 T1400 110 T1600 110"/>
+          <path class="lake-ripple" stroke-width="2" d="M0 160 Q100 154 200 160 T400 160 T600 160 T800 160 T1000 160 T1200 160 T1400 160 T1600 160"/>
+          <path class="lake-ripple" stroke-width="1.6" d="M0 220 Q100 214 200 220 T400 220 T600 220 T800 220 T1000 220 T1200 220 T1400 220 T1600 220"/>
+          <path class="lake-ripple" stroke-width="1.4" d="M0 280 Q100 274 200 280 T400 280 T600 280 T800 280 T1000 280 T1200 280 T1400 280 T1600 280"/>
+        </g>
+        <g class="lake-island">
+          <ellipse class="lake-island-base" cx="800" cy="62" rx="260" ry="14"/>
+          <ellipse class="lake-island-trees" cx="720" cy="46" rx="80" ry="28"/>
+          <ellipse class="lake-island-trees" cx="800" cy="38" rx="110" ry="34"/>
+          <ellipse class="lake-island-trees" cx="890" cy="48" rx="70" ry="26"/>
+        </g>
+        <g class="lake-shore">
+          <ellipse class="lake-rock" cx="60" cy="300" rx="22" ry="10"/>
+          <ellipse class="lake-rock" cx="110" cy="320" rx="16" ry="8"/>
+          <ellipse class="lake-rock" cx="200" cy="312" rx="14" ry="7"/>
+          <path class="lake-reed" d="M40 360 Q30 300 20 250"/>
+          <path class="lake-reed" d="M70 360 Q65 290 55 235"/>
+          <path class="lake-reed" d="M100 360 Q98 300 92 260"/>
+          <path class="lake-reed" d="M150 360 Q148 310 142 270"/>
+          <path class="lake-reed" d="M190 360 Q188 315 184 280"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Birch tree silhouette, cropped against the left edge -->
+    <div class="birch-layer">
+      <svg class="birch-svg" viewBox="0 0 500 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse class="birch-leaves" cx="130" cy="160" rx="150" ry="130"/>
+        <ellipse class="birch-leaves" cx="40" cy="260" rx="110" ry="100"/>
+        <ellipse class="birch-leaves--highlight" cx="200" cy="100" rx="80" ry="65"/>
+        <rect class="birch-trunk" x="155" y="280" width="20" height="720" rx="7"/>
+        <rect class="birch-bark" x="156" y="350" width="14" height="7" transform="rotate(-10 163 354)"/>
+        <rect class="birch-bark" x="162" y="430" width="15" height="6" transform="rotate(8 170 434)"/>
+        <rect class="birch-bark" x="155" y="520" width="14" height="7" transform="rotate(-6 162 524)"/>
+        <rect class="birch-bark" x="163" y="610" width="15" height="6" transform="rotate(10 171 614)"/>
+        <rect class="birch-bark" x="155" y="700" width="14" height="7" transform="rotate(-8 162 704)"/>
+      </svg>
     </div>
   </div>
 
@@ -225,12 +317,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.10.02.1</p>
+      <p class="about-modal__version">Version 2026.10.02.2</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.10.02.1"></script>
+  <script src="app.js?v=2026.10.02.2"></script>
 </body>
 </html>
