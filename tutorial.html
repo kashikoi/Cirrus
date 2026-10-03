@@ -8,8 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.02.7" />
-  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.7" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.8" />
+  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.8" />
   <script>
     // Set the theme class before first paint so there's no flash of the wrong atmosphere.
     try {
@@ -128,6 +128,18 @@
             <stop offset="0" stop-color="#1b2a4a"/>
             <stop offset="1" stop-color="#0a1226"/>
           </linearGradient>
+          <!-- Lighthouse knoll gradient, matched to the Nimbus app's grassy hill -->
+          <linearGradient id="hillKnollGrad" x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0" stop-color="#709775"/>
+            <stop offset="0.35" stop-color="#557c55"/>
+            <stop offset="0.7" stop-color="#416d41"/>
+            <stop offset="1" stop-color="#2d522d"/>
+          </linearGradient>
+          <linearGradient id="hillKnollNightGrad" x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0" stop-color="#3a5a40"/>
+            <stop offset="0.55" stop-color="#284430"/>
+            <stop offset="1" stop-color="#15271a"/>
+          </linearGradient>
         </defs>
 
         <rect class="lake-haze" x="0" y="118" width="1600" height="46"/>
@@ -142,10 +154,9 @@
         </g>
 
         <path class="hill hill--near" d="M0,178 L0,150 C70,112 170,92 290,100 C390,108 470,130 548,152 C600,166 640,172 690,174 L690,178 Z"/>
+        <path class="hill-knoll-highlight" d="M10,146 C90,116 180,100 290,108 C380,114 450,132 520,150"/>
 
-        <rect class="lake-water" x="0" y="172" width="1600" height="150"/>
-
-        <path class="lake-bank" d="M0,420 L0,332 Q110,312 210,326 Q330,340 430,316 Q550,300 660,320 Q770,340 890,318 Q1010,300 1130,322 Q1250,344 1370,316 Q1490,300 1600,320 L1600,420 Z"/>
+        <rect class="lake-water" x="0" y="172" width="1600" height="248"/>
       </svg>
     </div>
   </div>

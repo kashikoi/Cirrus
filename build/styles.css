@@ -816,7 +816,7 @@ html.dark .lake-haze {
 }
 
 .hill--near {
-  fill: #4a8a46;
+  fill: url(#hillKnollGrad);
 }
 
 html.twilight .hill--far {
@@ -828,10 +828,6 @@ html.twilight .hill--mid {
   fill: #6f7558;
 }
 
-html.twilight .hill--near {
-  fill: #565c43;
-}
-
 html.dark .hill--far {
   fill: #1e2f22;
 }
@@ -841,7 +837,20 @@ html.dark .hill--mid {
 }
 
 html.dark .hill--near {
-  fill: #101c13;
+  fill: url(#hillKnollNightGrad);
+}
+
+.hill-knoll-highlight {
+  fill: none;
+  stroke: #a3c9a8;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+html.dark .hill-knoll-highlight {
+  stroke: #5f8a63;
+  opacity: 0.4;
 }
 
 .hill-contour path {
@@ -872,18 +881,6 @@ html.twilight .lake-water {
 
 html.dark .lake-water {
   fill: url(#lakeNightGrad);
-}
-
-.lake-bank {
-  fill: #3f6b3f;
-}
-
-html.twilight .lake-bank {
-  fill: #4a3d52;
-}
-
-html.dark .lake-bank {
-  fill: #152018;
 }
 
 /* Starfield: two tiled layers of dots, hidden until dark mode is on */
