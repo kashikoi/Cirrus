@@ -138,6 +138,9 @@ function openDetailFromCard(e) {
 const searchInput = document.getElementById("search-input");
 const searchResults = document.getElementById("search-results");
 
+// Stays readonly until focused so browsers/password managers won't autofill it.
+searchInput.addEventListener("focus", () => searchInput.removeAttribute("readonly"));
+
 document.getElementById("search-btn").addEventListener("click", runSearch);
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") runSearch();
