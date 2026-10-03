@@ -8,8 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.02.9" />
-  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.9" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.10" />
+  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.10" />
   <script>
     // Set the theme class before first paint so there's no flash of the wrong atmosphere.
     try {
@@ -147,6 +147,8 @@
           </radialGradient>
         </defs>
 
+        <!-- Shift the scene down so the lighthouse clears the top crop on wide viewports -->
+        <g transform="translate(0,150)">
         <rect class="lake-haze" x="0" y="118" width="1600" height="46"/>
 
         <path class="hill hill--far" d="M0,150 C150,120 320,132 470,124 C640,114 800,134 960,124 C1120,114 1300,132 1450,122 C1520,118 1560,124 1600,120 L1600,178 L0,178 Z"/>
@@ -163,6 +165,7 @@
 
         <!-- Lighthouse on the knoll, matched to the Nimbus app -->
         <g class="lighthouse">
+          <circle class="lh-beacon" cx="206" cy="50" r="34" fill="url(#beaconGlow)"/>
           <path class="lh-base" d="M190,114 L222,114 L219,106 L193,106 Z"/>
           <polygon class="lh-white" points="193,110 219,110 216.84,92 195.16,92"/>
           <polygon class="lh-red" points="195.16,92 216.84,92 214.68,74 197.32,74"/>
@@ -174,11 +177,11 @@
           <rect class="lh-frame" x="199.5" y="44" width="13" height="12"/>
           <path class="lh-red" d="M197,44 Q206,31 215,44 Z"/>
           <circle class="lh-dark" cx="206" cy="31" r="1.6"/>
-          <circle class="lh-beacon" cx="206" cy="50" r="34" fill="url(#beaconGlow)"/>
           <circle cx="206" cy="50" r="2.4" fill="#fff5d1"/>
         </g>
 
         <rect class="lake-water" x="0" y="172" width="1600" height="248"/>
+        </g>
       </svg>
     </div>
   </div>
