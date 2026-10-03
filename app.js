@@ -141,6 +141,14 @@ const searchResults = document.getElementById("search-results");
 // Stays readonly until focused so browsers/password managers won't autofill it.
 searchInput.addEventListener("focus", () => searchInput.removeAttribute("readonly"));
 
+// Chrome re-autofills saved credentials after a delay despite the guards above;
+// its autofill triggers this animation (see styles.css), so clear the field when it does.
+searchInput.addEventListener("animationstart", (e) => {
+  if (e.animationName === "onSearchAutofill" && document.activeElement !== searchInput) {
+    searchInput.value = "";
+  }
+});
+
 document.getElementById("search-btn").addEventListener("click", runSearch);
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") runSearch();

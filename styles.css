@@ -201,6 +201,20 @@ html.mobile .search-bar {
   color: var(--text);
 }
 
+/* Fires an animation the moment a browser autofills the field so JS can clear it. */
+@keyframes onSearchAutofill {
+  from {
+    /* no-op */
+  }
+  to {
+    /* no-op */
+  }
+}
+
+.search-bar__input:-webkit-autofill {
+  animation-name: onSearchAutofill;
+}
+
 .search-results {
   display: none;
   flex-direction: column;
