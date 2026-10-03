@@ -8,8 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.02.8" />
-  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.8" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.02.9" />
+  <link rel="stylesheet" href="tutorial.css?v=2026.10.02.9" />
   <script>
     // Set the theme class before first paint so there's no flash of the wrong atmosphere.
     try {
@@ -112,7 +112,7 @@
     </div>
 
     <div class="lake-layer">
-      <svg class="lake-svg" viewBox="0 0 1600 420" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <svg class="lake-svg" viewBox="0 0 1600 420" preserveAspectRatio="xMinYMax slice" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="lakeDayGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#cfe9f2"/>
@@ -140,6 +140,11 @@
             <stop offset="0.55" stop-color="#284430"/>
             <stop offset="1" stop-color="#15271a"/>
           </linearGradient>
+          <radialGradient id="beaconGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#fff6db" stop-opacity="0.8"/>
+            <stop offset="0.35" stop-color="#f4b41a" stop-opacity="0.35"/>
+            <stop offset="1" stop-color="#f4b41a" stop-opacity="0"/>
+          </radialGradient>
         </defs>
 
         <rect class="lake-haze" x="0" y="118" width="1600" height="46"/>
@@ -155,6 +160,23 @@
 
         <path class="hill hill--near" d="M0,178 L0,150 C70,112 170,92 290,100 C390,108 470,130 548,152 C600,166 640,172 690,174 L690,178 Z"/>
         <path class="hill-knoll-highlight" d="M10,146 C90,116 180,100 290,108 C380,114 450,132 520,150"/>
+
+        <!-- Lighthouse on the knoll, matched to the Nimbus app -->
+        <g class="lighthouse">
+          <path class="lh-base" d="M190,114 L222,114 L219,106 L193,106 Z"/>
+          <polygon class="lh-white" points="193,110 219,110 216.84,92 195.16,92"/>
+          <polygon class="lh-red" points="195.16,92 216.84,92 214.68,74 197.32,74"/>
+          <polygon class="lh-white" points="197.32,74 214.68,74 213,60 199,60"/>
+          <rect class="lh-dark" x="204" y="96" width="4" height="6" rx="1"/>
+          <rect class="lh-dark" x="204" y="78" width="4" height="6" rx="1"/>
+          <rect class="lh-dark" x="196" y="56" width="20" height="4" rx="1"/>
+          <rect class="lh-lantern" x="199.5" y="44" width="13" height="12"/>
+          <rect class="lh-frame" x="199.5" y="44" width="13" height="12"/>
+          <path class="lh-red" d="M197,44 Q206,31 215,44 Z"/>
+          <circle class="lh-dark" cx="206" cy="31" r="1.6"/>
+          <circle class="lh-beacon" cx="206" cy="50" r="34" fill="url(#beaconGlow)"/>
+          <circle cx="206" cy="50" r="2.4" fill="#fff5d1"/>
+        </g>
 
         <rect class="lake-water" x="0" y="172" width="1600" height="248"/>
       </svg>
