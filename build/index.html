@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.06.1" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.06.2" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -323,12 +323,20 @@
 
       <label class="field">
         <span>TMDB API key <small>(for search &amp; new releases, free at themoviedb.org)</small></span>
-        <input type="password" id="tmdb-key-input" autocomplete="off" />
+        <div class="field__input-row">
+          <input type="password" id="tmdb-key-input" autocomplete="off" />
+          <button type="button" class="btn btn--ghost btn--small" id="tmdb-key-test-btn">Test</button>
+        </div>
+        <p class="key-test-status" id="tmdb-key-test-status"></p>
       </label>
 
       <label class="field">
         <span>OMDb API key <small>(optional, for IMDb/Rotten Tomatoes/Metacritic ratings)</small></span>
-        <input type="password" id="omdb-key-input" autocomplete="off" />
+        <div class="field__input-row">
+          <input type="password" id="omdb-key-input" autocomplete="off" />
+          <button type="button" class="btn btn--ghost btn--small" id="omdb-key-test-btn">Test</button>
+        </div>
+        <p class="key-test-status" id="omdb-key-test-status"></p>
       </label>
 
       <label class="field">
@@ -376,12 +384,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.10.06.1</p>
+      <p class="about-modal__version">Version 2026.10.06.2</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.10.06.1"></script>
+  <script src="app.js?v=2026.10.06.2"></script>
 </body>
 </html>

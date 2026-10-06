@@ -335,6 +335,17 @@ async function hydrateFromOmdb(movie) {
   }
 }
 
+// Backfills IMDb/Rotten Tomatoes/Metacritic onto movies added before an OMDb key was set.
+async function backfillSourcedRatings() {
+  if (!settings.omdbKey) return;
+  const stale = movies.filter((m) => m.imdbId && !(m.sourcedRatings || []).some((r) => r.source !== "TMDB"));
+  if (!stale.length) return;
+  for (const movie of stale) {
+    await hydrateFromOmdb(movie);
+  }
+  renderLists();
+}
+
 // ---- Discover (new releases) ----
 let discoverResults = [];
 async function loadDiscover() {
@@ -520,6 +531,8 @@ document.getElementById("settings-btn").addEventListener("click", () => {
   document.getElementById("tmdb-key-input").value = settings.tmdbKey || "";
   document.getElementById("omdb-key-input").value = settings.omdbKey || "";
   document.getElementById("region-input").value = settings.region || "US";
+  document.getElementById("tmdb-key-test-status").textContent = "";
+  document.getElementById("omdb-key-test-status").textContent = "";
   settingsModal.classList.add("open");
 });
 document.getElementById("settings-close-btn").addEventListener("click", () => {
@@ -529,6 +542,54 @@ document.getElementById("settings-close-btn").addEventListener("click", () => {
   saveSettings();
   settingsModal.classList.remove("open");
   backfillWatchProviders();
+  backfillSourcedRatings();
+});
+
+function setKeyTestStatus(elId, state, message) {
+  const el = document.getElementById(elId);
+  el.textContent = message;
+  el.className = "key-test-status" + (state ? ` key-test-status--${state}` : "");
+}
+
+document.getElementById("tmdb-key-test-btn").addEventListener("click", async () => {
+  const key = document.getElementById("tmdb-key-input").value.trim();
+  if (!key) {
+    setKeyTestStatus("tmdb-key-test-status", "error", "Enter a key first.");
+    return;
+  }
+  setKeyTestStatus("tmdb-key-test-status", "pending", "Testing…");
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/authentication?api_key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (res.ok && data.success) {
+      setKeyTestStatus("tmdb-key-test-status", "ok", "✓ Working");
+    } else {
+      setKeyTestStatus("tmdb-key-test-status", "error", `✗ ${data.status_message || "Invalid key"}`);
+    }
+  } catch (e) {
+    setKeyTestStatus("tmdb-key-test-status", "error", "✗ Couldn't reach TMDB (check your connection).");
+  }
+});
+
+document.getElementById("omdb-key-test-btn").addEventListener("click", async () => {
+  const key = document.getElementById("omdb-key-input").value.trim();
+  if (!key) {
+    setKeyTestStatus("omdb-key-test-status", "error", "Enter a key first.");
+    return;
+  }
+  setKeyTestStatus("omdb-key-test-status", "pending", "Testing…");
+  try {
+    // tt0111161 (Shawshank Redemption) is just a known-good probe id, not tied to the user's data.
+    const res = await fetch(`https://www.omdbapi.com/?apikey=${encodeURIComponent(key)}&i=tt0111161`);
+    const data = await res.json();
+    if (data.Response === "True") {
+      setKeyTestStatus("omdb-key-test-status", "ok", "✓ Working");
+    } else {
+      setKeyTestStatus("omdb-key-test-status", "error", `✗ ${data.Error || "Invalid key"}`);
+    }
+  } catch (e) {
+    setKeyTestStatus("omdb-key-test-status", "error", "✗ Couldn't reach OMDb (check your connection).");
+  }
 });
 
 document.getElementById("export-btn").addEventListener("click", () => {
@@ -560,6 +621,7 @@ document.getElementById("import-file").addEventListener("change", (e) => {
       }
       renderLists();
       backfillWatchProviders();
+      backfillSourcedRatings();
       alert("Import complete.");
     } catch (err) {
       alert("Couldn't import that file: " + err.message);
@@ -601,3 +663,4 @@ document.getElementById("about-close-btn").addEventListener("click", () => about
 // ---- Boot ----
 renderLists();
 backfillWatchProviders();
+backfillSourcedRatings();

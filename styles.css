@@ -455,6 +455,34 @@ html.mobile .search-bar {
   resize: vertical;
 }
 
+.field__input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.field__input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.key-test-status {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.key-test-status--pending {
+  color: var(--muted);
+}
+
+.key-test-status--ok {
+  color: #2e9e5b;
+}
+
+.key-test-status--error {
+  color: var(--danger);
+}
+
 /* ---- Modals ---- */
 .modal {
   position: fixed;
