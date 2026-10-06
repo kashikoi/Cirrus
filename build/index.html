@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.02.11" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.06.1" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -249,6 +249,8 @@
 
           <div class="detail__ratings" id="detail-sourced-ratings"></div>
 
+          <div class="watch-providers" id="detail-watch-providers"></div>
+
           <label class="field">
             <span>Your rating</span>
             <div class="star-input" id="personal-rating-input"></div>
@@ -329,6 +331,24 @@
         <input type="password" id="omdb-key-input" autocomplete="off" />
       </label>
 
+      <label class="field">
+        <span>Streaming region <small>(country used for "where to watch" availability)</small></span>
+        <select id="region-input">
+          <option value="US">United States</option>
+          <option value="GB">United Kingdom</option>
+          <option value="CA">Canada</option>
+          <option value="AU">Australia</option>
+          <option value="DE">Germany</option>
+          <option value="FR">France</option>
+          <option value="ES">Spain</option>
+          <option value="IT">Italy</option>
+          <option value="JP">Japan</option>
+          <option value="BR">Brazil</option>
+          <option value="MX">Mexico</option>
+          <option value="IN">India</option>
+        </select>
+      </label>
+
       <div class="settings-row">
         <span>Backup</span>
         <div class="settings-row__actions">
@@ -356,12 +376,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.10.02.11</p>
+      <p class="about-modal__version">Version 2026.10.06.1</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.10.02.11"></script>
+  <script src="app.js?v=2026.10.06.1"></script>
 </body>
 </html>

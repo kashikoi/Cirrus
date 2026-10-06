@@ -4,6 +4,7 @@ const MOVIES_KEY = "cirrus.movies";
 const SETTINGS_KEY = "cirrus.settings";
 
 const TMDB_IMG = "https://image.tmdb.org/t/p/w342";
+const TMDB_LOGO = "https://image.tmdb.org/t/p/w45";
 
 // ---- State ----
 let movies = loadMovies();
@@ -22,9 +23,9 @@ function saveMovies() {
 }
 function loadSettings() {
   try {
-    return Object.assign({ tmdbKey: "", omdbKey: "" }, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
+    return Object.assign({ tmdbKey: "", omdbKey: "", region: "US" }, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
   } catch (e) {
-    return { tmdbKey: "", omdbKey: "" };
+    return { tmdbKey: "", omdbKey: "", region: "US" };
   }
 }
 function saveSettings() {
@@ -102,9 +103,27 @@ function movieCardHtml(movie) {
         <p class="movie-card__title">${escapeHtml(movie.title)}</p>
         <p class="movie-card__year">${escapeHtml(movie.year || "")}</p>
         <div class="movie-card__ratings">${chips}</div>
+        ${watchAvailabilityHtml(movie)}
         ${movie.personalRating ? `<div class="movie-card__stars">${starString(movie.personalRating)}</div>` : ""}
       </div>
     </article>`;
+}
+
+// Compact best-option badge: prefers a subscription service, then rent, then buy.
+function watchAvailabilityHtml(movie) {
+  const wp = movie.watchProviders;
+  if (!wp) return "";
+  const names = (list) => list.map((p) => p.name).slice(0, 2).join(", ");
+  if (wp.flatrate?.length) {
+    return `<div class="movie-card__availability movie-card__availability--stream">▶ ${escapeHtml(names(wp.flatrate))}</div>`;
+  }
+  if (wp.rent?.length) {
+    return `<div class="movie-card__availability movie-card__availability--rent">Rent: ${escapeHtml(names(wp.rent))}</div>`;
+  }
+  if (wp.buy?.length) {
+    return `<div class="movie-card__availability movie-card__availability--buy">Buy: ${escapeHtml(names(wp.buy))}</div>`;
+  }
+  return `<div class="movie-card__availability movie-card__availability--none">Not streaming/renting</div>`;
 }
 
 function renderLists() {
@@ -221,6 +240,7 @@ async function addFromTmdbId(tmdbId) {
     imdbId: null,
     sourcedRatings: [],
     reviews: [],
+    watchProviders: null,
     addedAt: Date.now(),
   };
   movies.push(movie);
@@ -256,9 +276,49 @@ async function hydrateFromTmdb(movie) {
     if (settings.omdbKey && movie.imdbId) {
       await hydrateFromOmdb(movie);
     }
+
+    await hydrateWatchProviders(movie);
   } catch (e) {
     // offline or blocked request — movie stays as a manual-style entry
   }
+}
+
+function mapWatchProvider(p) {
+  return { name: p.provider_name, logo: p.logo_path ? TMDB_LOGO + p.logo_path : null };
+}
+
+async function hydrateWatchProviders(movie) {
+  if (!settings.tmdbKey || !movie.tmdbId) return;
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdbId}/watch/providers?api_key=${encodeURIComponent(settings.tmdbKey)}`);
+    const data = await res.json();
+    if (!res.ok) return;
+    const region = settings.region || "US";
+    const entry = (data.results || {})[region];
+    movie.watchProviders = {
+      region,
+      link: entry?.link || null,
+      flatrate: (entry?.flatrate || []).map(mapWatchProvider),
+      rent: (entry?.rent || []).map(mapWatchProvider),
+      buy: (entry?.buy || []).map(mapWatchProvider),
+    };
+    saveMovies();
+  } catch (e) {
+    // offline or blocked request — leave watch providers as-is
+  }
+}
+
+// Backfills/refreshes availability for movies that haven't been checked yet (or whose
+// cached data is for a different region than the current setting).
+async function backfillWatchProviders() {
+  if (!settings.tmdbKey) return;
+  const region = settings.region || "US";
+  const stale = movies.filter((m) => m.tmdbId && (!m.watchProviders || m.watchProviders.region !== region));
+  if (!stale.length) return;
+  for (const movie of stale) {
+    await hydrateWatchProviders(movie);
+  }
+  renderLists();
 }
 
 async function hydrateFromOmdb(movie) {
@@ -342,6 +402,7 @@ document.getElementById("manual-save-btn").addEventListener("click", () => {
     imdbId: null,
     sourcedRatings: [],
     reviews: [],
+    watchProviders: null,
     addedAt: Date.now(),
   });
   saveMovies();
@@ -374,12 +435,43 @@ function openDetailModal(id) {
     .map((r) => `<span class="rating-chip">${escapeHtml(r.source)}: ${escapeHtml(r.value)}</span>`)
     .join("");
 
+  document.getElementById("detail-watch-providers").innerHTML = watchProvidersDetailHtml(movie);
+
   document.getElementById("detail-reviews").innerHTML = (movie.reviews || [])
     .map((r) => `<div class="review"><div class="review__author">${escapeHtml(r.author)}</div><div class="review__content">${escapeHtml(r.content)}</div></div>`)
     .join("");
 
   renderStarInput();
   detailModal.classList.add("open");
+}
+
+function watchProvidersDetailHtml(movie) {
+  const wp = movie.watchProviders;
+  if (!wp) {
+    return `<p class="watch-providers__empty">Availability not checked yet${settings.tmdbKey ? " — reopen after a refresh." : " (add a TMDB API key in Settings)."}</p>`;
+  }
+  const groups = [
+    ["Stream", wp.flatrate],
+    ["Rent", wp.rent],
+    ["Buy", wp.buy],
+  ].filter(([, list]) => list && list.length);
+  const regionLabel = wp.region ? ` in ${escapeHtml(wp.region)}` : "";
+  if (!groups.length) {
+    return `<p class="watch-providers__empty">Not currently streaming, renting, or available to buy${regionLabel}.</p>`;
+  }
+  const groupsHtml = groups
+    .map(
+      ([label, list]) => `
+      <div class="watch-providers__group">
+        <span class="watch-providers__label">${label}</span>
+        <div class="watch-providers__list">
+          ${list.map((p) => `<span class="watch-provider">${p.logo ? `<img src="${escapeHtml(p.logo)}" alt="" />` : ""}${escapeHtml(p.name)}</span>`).join("")}
+        </div>
+      </div>`
+    )
+    .join("");
+  const link = wp.link ? `<a class="watch-providers__link" href="${escapeHtml(wp.link)}" target="_blank" rel="noopener">See all options on JustWatch</a>` : "";
+  return groupsHtml + link;
 }
 
 function renderStarInput() {
@@ -427,13 +519,16 @@ const settingsModal = document.getElementById("settings-modal");
 document.getElementById("settings-btn").addEventListener("click", () => {
   document.getElementById("tmdb-key-input").value = settings.tmdbKey || "";
   document.getElementById("omdb-key-input").value = settings.omdbKey || "";
+  document.getElementById("region-input").value = settings.region || "US";
   settingsModal.classList.add("open");
 });
 document.getElementById("settings-close-btn").addEventListener("click", () => {
   settings.tmdbKey = document.getElementById("tmdb-key-input").value.trim();
   settings.omdbKey = document.getElementById("omdb-key-input").value.trim();
+  settings.region = document.getElementById("region-input").value;
   saveSettings();
   settingsModal.classList.remove("open");
+  backfillWatchProviders();
 });
 
 document.getElementById("export-btn").addEventListener("click", () => {
@@ -464,6 +559,7 @@ document.getElementById("import-file").addEventListener("change", (e) => {
         applyTheme(imported.theme);
       }
       renderLists();
+      backfillWatchProviders();
       alert("Import complete.");
     } catch (err) {
       alert("Couldn't import that file: " + err.message);
@@ -504,3 +600,4 @@ document.getElementById("about-close-btn").addEventListener("click", () => about
 
 // ---- Boot ----
 renderLists();
+backfillWatchProviders();

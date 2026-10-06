@@ -34,20 +34,30 @@ been built, why, and non-obvious details worth knowing before changing anything.
 ## Data model (localStorage keys)
 - `cirrus.movies` — array of movie objects:
   `{id, tmdbId, title, year, poster, overview, status, personalRating, watchedDate, notes,
-  imdbId, sourcedRatings: [{source, value}], reviews: [{author, content}], addedAt}`
+  imdbId, sourcedRatings: [{source, value}], reviews: [{author, content}], watchProviders,
+  addedAt}`
   - `status` is `"watchlist"` or `"watched"`.
   - `personalRating` is 0–5 (stars).
   - `sourcedRatings` is populated from TMDB (`vote_average`) and, if an OMDb key is set,
     from OMDb's `Ratings` array (IMDb, Rotten Tomatoes, Metacritic).
-- `cirrus.settings` — `{tmdbKey, omdbKey}`. Both optional; without a TMDB key, search,
-  Discover, reviews, and auto-filled posters/overviews are unavailable, but manual add,
-  personal ratings, notes, and watched tracking still work fully offline.
+  - `watchProviders` is `null` until hydrated, else
+    `{region, link, flatrate: [{name, logo}], rent: [...], buy: [...]}` sourced from TMDB's
+    `/movie/{id}/watch/providers` endpoint (JustWatch data) for the configured region. Stale
+    (wrong-region or never-fetched) entries are backfilled in the background on boot, after
+    import, and after a Settings region change — see `backfillWatchProviders()`.
+- `cirrus.settings` — `{tmdbKey, omdbKey, region}`. `tmdbKey`/`omdbKey` optional; without a
+  TMDB key, search, Discover, reviews, watch-provider availability, and auto-filled
+  posters/overviews are unavailable, but manual add, personal ratings, notes, and watched
+  tracking still work fully offline. `region` is a 2-letter country code (default `"US"`)
+  used for the "where to watch" availability lookup.
 - `cirrus.theme` — `"day"`, `"twilight"`, `"night"`, or `"random"` (same atmosphere scheme
   as Cumulus/Nimbus).
 
 ## External APIs (client-side only, CORS-enabled, no backend/proxy)
-- **TMDB** (themoviedb.org) — search, movie details, reviews, and now-playing/discover.
-  Free API key, user-supplied via Settings, never committed to the repo.
+- **TMDB** (themoviedb.org) — search, movie details, reviews, now-playing/discover, and
+  watch providers (`/movie/{id}/watch/providers`, JustWatch-sourced streaming/rent/buy
+  availability by region). Free API key, user-supplied via Settings, never committed to
+  the repo.
 - **OMDb** (omdbapi.com) — optional, supplies IMDb/Rotten Tomatoes/Metacritic ratings via
   the movie's `imdb_id` (fetched from TMDB movie details). Free API key, user-supplied.
 - Never hardcode a real API key in source — these are entered by the user and stored only
