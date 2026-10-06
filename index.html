@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.06.2" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.06.3" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -154,6 +154,9 @@
             <stop offset="0.35" stop-color="#f4b41a" stop-opacity="0.35"/>
             <stop offset="1" stop-color="#f4b41a" stop-opacity="0"/>
           </radialGradient>
+          <!-- One windmill sail blade (stroke inherited so themes can recolor it) -->
+          <path id="wmBlade" fill="none" stroke-width="0.7" stroke-linecap="round"
+            d="M-1.1,-3 L-1.1,-15 M1.1,-3 L1.1,-15 M-1.1,-5 L1.1,-5 M-1.1,-7.6 L1.1,-7.6 M-1.1,-10.2 L1.1,-10.2 M-1.1,-12.8 L1.1,-12.8"/>
         </defs>
 
         <!-- Shift the scene down so the lighthouse clears the top crop on wide viewports -->
@@ -167,6 +170,54 @@
           <path d="M40,154 C180,136 300,152 440,152"/>
           <path d="M520,158 C660,148 760,158 900,158"/>
           <path d="M980,156 C1120,146 1240,158 1380,154"/>
+        </g>
+
+        <!-- Old stone-tower windmills dotted along the far shoreline -->
+        <g class="windmills">
+          <g class="windmill" transform="translate(726,118) scale(1.55)">
+            <path class="windmill__tower" d="M-4,24 L-2.6,1 L2.6,1 L4,24 Z"/>
+            <path class="windmill__cap" d="M-4.2,1 Q0,-6 4.2,1 Z"/>
+            <g class="windmill__sails">
+              <use class="windmill__lattice" href="#wmBlade"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(90)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(180)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(270)"/>
+              <circle class="windmill__hub" r="1.1"/>
+            </g>
+          </g>
+          <g class="windmill" transform="translate(848,129) scale(1.15)">
+            <path class="windmill__tower" d="M-4,24 L-2.6,1 L2.6,1 L4,24 Z"/>
+            <path class="windmill__cap" d="M-4.2,1 Q0,-6 4.2,1 Z"/>
+            <g class="windmill__sails">
+              <use class="windmill__lattice" href="#wmBlade"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(90)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(180)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(270)"/>
+              <circle class="windmill__hub" r="1.1"/>
+            </g>
+          </g>
+          <g class="windmill" transform="translate(972,113) scale(1.7)">
+            <path class="windmill__tower" d="M-4,24 L-2.6,1 L2.6,1 L4,24 Z"/>
+            <path class="windmill__cap" d="M-4.2,1 Q0,-6 4.2,1 Z"/>
+            <g class="windmill__sails">
+              <use class="windmill__lattice" href="#wmBlade"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(90)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(180)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(270)"/>
+              <circle class="windmill__hub" r="1.1"/>
+            </g>
+          </g>
+          <g class="windmill" transform="translate(1082,126) scale(1.3)">
+            <path class="windmill__tower" d="M-4,24 L-2.6,1 L2.6,1 L4,24 Z"/>
+            <path class="windmill__cap" d="M-4.2,1 Q0,-6 4.2,1 Z"/>
+            <g class="windmill__sails">
+              <use class="windmill__lattice" href="#wmBlade"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(90)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(180)"/>
+              <use class="windmill__lattice" href="#wmBlade" transform="rotate(270)"/>
+              <circle class="windmill__hub" r="1.1"/>
+            </g>
+          </g>
         </g>
 
         <path class="hill hill--near" d="M0,178 L0,150 C70,112 170,92 290,100 C390,108 470,130 548,152 C600,166 640,172 690,174 L690,178 Z"/>
@@ -384,12 +435,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.10.06.2</p>
+      <p class="about-modal__version">Version 2026.10.06.3</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.10.06.2"></script>
+  <script src="app.js?v=2026.10.06.3"></script>
 </body>
 </html>

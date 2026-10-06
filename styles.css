@@ -1032,6 +1032,89 @@ html.dark .hill-contour path {
   opacity: 0.5;
 }
 
+/* Distant stone windmills along the far shoreline */
+.windmills {
+  opacity: 0.9;
+}
+
+.windmill__tower {
+  fill: #8a9298;
+}
+
+.windmill__cap {
+  fill: #2f3a44;
+}
+
+.windmill__lattice {
+  stroke: #efe0bf;
+}
+
+.windmill__hub {
+  fill: #3a4652;
+}
+
+.windmill__sails {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: windmillSpin 20s linear infinite;
+}
+
+.windmill:nth-child(2) .windmill__sails {
+  animation-duration: 26s;
+}
+
+.windmill:nth-child(3) .windmill__sails {
+  animation-duration: 17s;
+}
+
+.windmill:nth-child(4) .windmill__sails {
+  animation-duration: 30s;
+}
+
+@keyframes windmillSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+html.twilight .windmill__tower {
+  fill: #8f8678;
+}
+
+html.twilight .windmill__cap {
+  fill: #2e2a3e;
+}
+
+html.twilight .windmill__lattice {
+  stroke: #cdb08c;
+}
+
+html.dark .windmills {
+  opacity: 0.8;
+}
+
+html.dark .windmill__tower {
+  fill: #24323f;
+}
+
+html.dark .windmill__cap {
+  fill: #101a28;
+}
+
+html.dark .windmill__lattice {
+  stroke: #4a5a6a;
+}
+
+html.dark .windmill__hub {
+  fill: #101a28;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .windmill__sails {
+    animation: none;
+  }
+}
+
 .lake-water {
   fill: url(#lakeDayGrad);
 }
