@@ -16,7 +16,7 @@ The app can also be hosted as static files, but opening it through `file://` is 
 
 ## What it does
 
-- Tracks a **Watchlist** and a **Watched** history, with the date you watched each movie.
+- Shows every movie on one page, grouped into genre categories pulled from TMDB; watched movies get a green checkmark and border so you can tell at a glance.
 - Lets you rate movies yourself (1–5 stars) and jot down personal notes.
 - Shows sourced ratings — TMDB, and optionally IMDb, Rotten Tomatoes, and Metacritic via OMDb — alongside your own, so you can see how your taste compares.
 - Pulls in a few written reviews per movie.

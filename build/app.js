@@ -78,23 +78,24 @@ themePicker?.addEventListener("click", (event) => {
   applyTheme(preference);
 });
 
-// ---- Tabs ----
-document.getElementById("tabs").addEventListener("click", (e) => {
-  const tab = e.target.closest(".tab");
-  if (!tab) return;
-  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("tab--active", t === tab));
-  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("tab-panel--active"));
-  document.getElementById(`panel-${tab.dataset.tab}`).classList.add("tab-panel--active");
-});
-
 // ---- Rendering ----
 function movieCardHtml(movie) {
   const poster = movie.poster
     ? `<img class="movie-card__poster" src="${escapeHtml(movie.poster)}" alt="" />`
     : `<div class="movie-card__poster">${escapeHtml(movie.title)}</div>`;
+  const rt = (movie.sourcedRatings || []).find((r) => r.source === "Rotten Tomatoes");
+  const rtScore = rt ? parseInt(rt.value, 10) : null;
+  const rtBadge = Number.isFinite(rtScore)
+    ? `<span class="movie-card__rt-badge ${rtScore >= 60 ? "movie-card__rt-badge--fresh" : "movie-card__rt-badge--rotten"}">🍅 ${rtScore}%</span>`
+    : "";
+  const watchedBadge = movie.status === "watched" ? `<span class="movie-card__watched-badge" title="Watched">✓</span>` : "";
   return `
-    <article class="movie-card" data-id="${movie.id}">
-      ${poster}
+    <article class="movie-card${movie.status === "watched" ? " movie-card--watched" : ""}" data-id="${movie.id}">
+      <div class="movie-card__poster-wrap">
+        ${poster}
+        ${rtBadge}
+        ${watchedBadge}
+      </div>
       <div class="movie-card__body">
         <p class="movie-card__title">${escapeHtml(movie.title)}</p>
         <p class="movie-card__year">${escapeHtml(movie.year || "")}${movie.personalRating ? ` &middot; ${"★".repeat(Math.round(movie.personalRating))}` : ""}</p>
@@ -103,20 +104,34 @@ function movieCardHtml(movie) {
 }
 
 function renderLists() {
-  const watchlist = movies.filter((m) => m.status === "watchlist");
-  const watched = movies.filter((m) => m.status === "watched");
+  const feed = document.getElementById("movie-feed");
+  document.getElementById("movies-empty").style.display = movies.length ? "none" : "block";
 
-  const wlGrid = document.getElementById("watchlist-grid");
-  wlGrid.innerHTML = watchlist.map(movieCardHtml).join("");
-  document.getElementById("watchlist-empty").style.display = watchlist.length ? "none" : "block";
+  const groups = new Map();
+  for (const movie of movies) {
+    const genre = movie.genres && movie.genres.length ? movie.genres[0] : "Uncategorized";
+    if (!groups.has(genre)) groups.set(genre, []);
+    groups.get(genre).push(movie);
+  }
 
-  const wGrid = document.getElementById("watched-grid");
-  wGrid.innerHTML = watched.map(movieCardHtml).join("");
-  document.getElementById("watched-empty").style.display = watched.length ? "none" : "block";
+  const genres = [...groups.keys()].sort((a, b) => {
+    if (a === "Uncategorized") return 1;
+    if (b === "Uncategorized") return -1;
+    return a.localeCompare(b);
+  });
+
+  feed.innerHTML = genres
+    .map(
+      (genre) => `
+      <section class="category">
+        <h2 class="category__title">${escapeHtml(genre)}</h2>
+        <div class="movie-grid">${groups.get(genre).map(movieCardHtml).join("")}</div>
+      </section>`
+    )
+    .join("");
 }
 
-document.getElementById("watchlist-grid").addEventListener("click", (e) => openDetailFromCard(e));
-document.getElementById("watched-grid").addEventListener("click", (e) => openDetailFromCard(e));
+document.getElementById("movie-feed").addEventListener("click", (e) => openDetailFromCard(e));
 
 function openDetailFromCard(e) {
   const card = e.target.closest(".movie-card");
@@ -209,6 +224,7 @@ async function addFromTmdbId(tmdbId) {
     watchedDate: null,
     notes: "",
     imdbId: null,
+    genres: [],
     sourcedRatings: [],
     reviews: [],
     watchProviders: null,
@@ -234,6 +250,8 @@ async function hydrateFromTmdb(movie) {
     movie.poster = data.poster_path ? TMDB_IMG + data.poster_path : null;
     movie.overview = data.overview || "";
     movie.imdbId = data.imdb_id || null;
+    movie.genres = (data.genres || []).map((g) => g.name);
+    movie.sourcedRatings = data.vote_average ? [{ source: "TMDB", value: data.vote_average.toFixed(1) }] : [];
     saveMovies();
 
     const reviewRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdbId}/reviews?api_key=${encodeURIComponent(settings.tmdbKey)}`);
@@ -297,7 +315,8 @@ async function hydrateFromOmdb(movie) {
     const data = await res.json();
     if (data.Response === "True" && Array.isArray(data.Ratings)) {
       const wanted = ["Internet Movie Database", "Rotten Tomatoes"];
-      movie.sourcedRatings = data.Ratings.filter((r) => wanted.includes(r.Source)).map((r) => ({ source: r.Source, value: r.Value }));
+      const extra = data.Ratings.filter((r) => wanted.includes(r.Source)).map((r) => ({ source: r.Source, value: r.Value }));
+      movie.sourcedRatings = [...movie.sourcedRatings.filter((r) => r.source === "TMDB"), ...extra];
       saveMovies();
     }
   } catch (e) {
@@ -308,7 +327,7 @@ async function hydrateFromOmdb(movie) {
 // Backfills IMDb/Rotten Tomatoes/Metacritic onto movies added before an OMDb key was set.
 async function backfillSourcedRatings() {
   if (!settings.omdbKey) return;
-  const stale = movies.filter((m) => m.imdbId && !(m.sourcedRatings || []).length);
+  const stale = movies.filter((m) => m.imdbId && !(m.sourcedRatings || []).some((r) => r.source !== "TMDB"));
   if (!stale.length) return;
   for (const movie of stale) {
     await hydrateFromOmdb(movie);
@@ -340,6 +359,7 @@ document.getElementById("manual-save-btn").addEventListener("click", () => {
     watchedDate: null,
     notes: "",
     imdbId: null,
+    genres: [],
     sourcedRatings: [],
     reviews: [],
     watchProviders: null,
@@ -589,20 +609,34 @@ document.getElementById("about-close-btn").addEventListener("click", () => about
   if (src && badge) badge.textContent = src.textContent.replace(/^Version\s+/i, "v");
 })();
 
-// ---- Boot ----
-// One-time cleanup: drop the TMDB entry we used to store in sourcedRatings (now IMDb/Rotten Tomatoes only).
-(() => {
-  let changed = false;
-  for (const movie of movies) {
-    const filtered = (movie.sourcedRatings || []).filter((r) => r.source !== "TMDB");
-    if (filtered.length !== (movie.sourcedRatings || []).length) {
-      movie.sourcedRatings = filtered;
-      changed = true;
+// Backfills the TMDB rating and genres onto movies missing either (e.g. added before these were tracked).
+async function backfillTmdbDetails() {
+  if (!settings.tmdbKey) return;
+  const stale = movies.filter(
+    (m) => m.tmdbId && (!(m.sourcedRatings || []).some((r) => r.source === "TMDB") || !(m.genres || []).length)
+  );
+  if (!stale.length) return;
+  for (const movie of stale) {
+    try {
+      const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdbId}?api_key=${encodeURIComponent(settings.tmdbKey)}`);
+      const data = await res.json();
+      if (!res.ok) continue;
+      if (data.vote_average && !(movie.sourcedRatings || []).some((r) => r.source === "TMDB")) {
+        movie.sourcedRatings = [{ source: "TMDB", value: data.vote_average.toFixed(1) }, ...(movie.sourcedRatings || [])];
+      }
+      if (Array.isArray(data.genres) && data.genres.length && !(movie.genres || []).length) {
+        movie.genres = data.genres.map((g) => g.name);
+      }
+      saveMovies();
+    } catch (e) {
+      // offline or blocked request — leave details as-is
     }
   }
-  if (changed) saveMovies();
-})();
+  renderLists();
+}
 
+// ---- Boot ----
 renderLists();
 backfillWatchProviders();
 backfillSourcedRatings();
+backfillTmdbDetails();

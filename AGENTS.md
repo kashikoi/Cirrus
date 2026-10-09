@@ -14,6 +14,11 @@ been built, why, and non-obvious details worth knowing before changing anything.
   rating against sourced ratings (TMDB/IMDb/Rotten Tomatoes/Metacritic) and a few written
   reviews — so years later you never have to wonder whether you've seen something, or what
   you thought of it.
+- UI: a single page, no tabs. Movies are grouped into genre-category sections (from TMDB's
+  `genres`, falling back to "Uncategorized" for manually added or un-hydrated movies).
+  `status` (`watchlist`/`watched`) is tracked per-movie but doesn't split them into separate
+  views — a watched movie stays in its genre section, just with a `.movie-card--watched`
+  border/glow and a checkmark badge overlaid on the poster.
 - Intent: a DYNAMIC, never-"final" tool that keeps evolving as the user uses it. Purely
   personal use, not a product.
 - **Design Inspiration & Sister Apps:** Cumulus (personal finance) and Nimbus (to-do /
@@ -34,9 +39,12 @@ been built, why, and non-obvious details worth knowing before changing anything.
 ## Data model (localStorage keys)
 - `cirrus.movies` — array of movie objects:
   `{id, tmdbId, title, year, poster, overview, status, personalRating, watchedDate, notes,
-  imdbId, sourcedRatings: [{source, value}], reviews: [{author, content}], watchProviders,
-  addedAt}`
-  - `status` is `"watchlist"` or `"watched"`.
+  imdbId, genres: [string], sourcedRatings: [{source, value}], reviews: [{author, content}],
+  watchProviders, addedAt}`
+  - `status` is `"watchlist"` or `"watched"` — affects only the watched-card highlight, not
+    which genre section a movie appears in (see "UI" above).
+  - `genres` is the movie's TMDB genre names; the card is filed under the first one (or
+    "Uncategorized" if empty). Backfilled for pre-existing movies by `backfillTmdbDetails()`.
   - `personalRating` is 0–5 (stars).
   - `sourcedRatings` is populated from TMDB (`vote_average`) and, if an OMDb key is set,
     from OMDb's `Ratings` array (IMDb, Rotten Tomatoes, Metacritic).

@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.09.1" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.09.2" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -266,20 +266,8 @@
 
     <div id="search-results" class="search-results"></div>
 
-    <nav class="tabs" id="tabs">
-      <button type="button" class="tab tab--active" data-tab="watchlist">Watchlist</button>
-      <button type="button" class="tab" data-tab="watched">Watched</button>
-    </nav>
-
-    <section class="tab-panel tab-panel--active" id="panel-watchlist">
-      <div class="movie-grid" id="watchlist-grid"></div>
-      <p class="empty-state" id="watchlist-empty">Nothing on your watchlist yet. Search above or add a movie manually.</p>
-    </section>
-
-    <section class="tab-panel" id="panel-watched">
-      <div class="movie-grid" id="watched-grid"></div>
-      <p class="empty-state" id="watched-empty">You haven't logged any watched movies yet.</p>
-    </section>
+    <div class="movie-feed" id="movie-feed"></div>
+    <p class="empty-state" id="movies-empty">Nothing on your watchlist yet. Search above or add a movie manually.</p>
   </div>
 
   <!-- Movie detail modal -->
@@ -429,12 +417,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.10.09.1</p>
+      <p class="about-modal__version">Version 2026.10.09.2</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.10.09.1"></script>
+  <script src="app.js?v=2026.10.09.2"></script>
 </body>
 </html>
