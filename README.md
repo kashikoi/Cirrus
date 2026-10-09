@@ -20,8 +20,7 @@ The app can also be hosted as static files, but opening it through `file://` is 
 - Lets you rate movies yourself (1–5 stars) and jot down personal notes.
 - Shows sourced ratings — TMDB, and optionally IMDb, Rotten Tomatoes, and Metacritic via OMDb — alongside your own, so you can see how your taste compares.
 - Pulls in a few written reviews per movie.
-- Surfaces what's currently in theaters in the **Discover** tab.
-- Works fully offline for manual tracking; search, auto-filled posters, reviews, and Discover need a free TMDB API key (and optionally a free OMDb key), entered once in Settings.
+- Works fully offline for manual tracking; search, auto-filled posters, and reviews need a free TMDB API key (and optionally a free OMDb key), entered once in Settings.
 - Includes light/twilight/night themes, a built-in tutorial, and JSON export/import for backups.
 
 ## Data and privacy

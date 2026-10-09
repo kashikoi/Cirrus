@@ -46,7 +46,7 @@ been built, why, and non-obvious details worth knowing before changing anything.
     (wrong-region or never-fetched) entries are backfilled in the background on boot, after
     import, and after a Settings region change — see `backfillWatchProviders()`.
 - `cirrus.settings` — `{tmdbKey, omdbKey, region}`. `tmdbKey`/`omdbKey` optional; without a
-  TMDB key, search, Discover, reviews, watch-provider availability, and auto-filled
+  TMDB key, search, reviews, watch-provider availability, and auto-filled
   posters/overviews are unavailable, but manual add, personal ratings, notes, and watched
   tracking still work fully offline. `region` is a 2-letter country code (default `"US"`)
   used for the "where to watch" availability lookup.
@@ -54,7 +54,7 @@ been built, why, and non-obvious details worth knowing before changing anything.
   as Cumulus/Nimbus).
 
 ## External APIs (client-side only, CORS-enabled, no backend/proxy)
-- **TMDB** (themoviedb.org) — search, movie details, reviews, now-playing/discover, and
+- **TMDB** (themoviedb.org) — search, movie details, reviews, and
   watch providers (`/movie/{id}/watch/providers`, JustWatch-sourced streaming/rent/buy
   availability by region). Free API key, user-supplied via Settings, never committed to
   the repo.

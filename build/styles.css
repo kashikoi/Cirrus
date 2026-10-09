@@ -300,17 +300,11 @@ html.mobile .search-bar {
   padding: 30px 10px;
 }
 
-.discover__hint {
-  color: var(--muted);
-  text-align: center;
-  padding: 10px 10px 20px;
-}
-
 /* ---- Movie grid / cards ---- */
 .movie-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
 }
 
 .movie-card {
@@ -343,65 +337,25 @@ html.mobile .search-bar {
 }
 
 .movie-card__body {
-  padding: 10px 12px 12px;
+  padding: 6px 8px 8px;
 }
 
 .movie-card__title {
   font-weight: 700;
-  font-size: 14px;
-  margin: 0 0 2px;
-}
-
-.movie-card__year {
-  color: var(--muted);
   font-size: 12px;
-  margin: 0 0 8px;
-}
-
-.movie-card__ratings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 11px;
-}
-
-.rating-chip {
-  background: rgba(61, 134, 216, 0.12);
-  color: var(--accent-2);
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.movie-card__stars {
-  margin-top: 8px;
-  color: #f0b429;
-  font-size: 14px;
-  letter-spacing: 1px;
-}
-
-.movie-card__availability {
-  margin-top: 6px;
-  font-size: 11px;
-  font-weight: 600;
+  margin: 0 0 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.movie-card__availability--stream {
-  color: #2e9e5b;
-}
-
-.movie-card__availability--rent,
-.movie-card__availability--buy {
-  color: var(--accent-2);
-}
-
-.movie-card__availability--none {
+.movie-card__year {
   color: var(--muted);
-  font-weight: 500;
+  font-size: 11px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---- Star rating input (detail modal) ---- */
@@ -630,6 +584,16 @@ html.mobile .detail {
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 14px;
+}
+
+.rating-chip {
+  background: rgba(61, 134, 216, 0.12);
+  color: var(--accent-2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .watch-providers {
@@ -1227,7 +1191,7 @@ html.dark .movie-card__poster {
   }
 
   .movie-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   }
 
   .detail {

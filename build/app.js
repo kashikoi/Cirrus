@@ -85,7 +85,6 @@ document.getElementById("tabs").addEventListener("click", (e) => {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("tab--active", t === tab));
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("tab-panel--active"));
   document.getElementById(`panel-${tab.dataset.tab}`).classList.add("tab-panel--active");
-  if (tab.dataset.tab === "discover") loadDiscover();
 });
 
 // ---- Rendering ----
@@ -93,37 +92,14 @@ function movieCardHtml(movie) {
   const poster = movie.poster
     ? `<img class="movie-card__poster" src="${escapeHtml(movie.poster)}" alt="" />`
     : `<div class="movie-card__poster">${escapeHtml(movie.title)}</div>`;
-  const chips = (movie.sourcedRatings || [])
-    .map((r) => `<span class="rating-chip">${escapeHtml(r.source)} ${escapeHtml(r.value)}</span>`)
-    .join("");
   return `
     <article class="movie-card" data-id="${movie.id}">
       ${poster}
       <div class="movie-card__body">
         <p class="movie-card__title">${escapeHtml(movie.title)}</p>
-        <p class="movie-card__year">${escapeHtml(movie.year || "")}</p>
-        <div class="movie-card__ratings">${chips}</div>
-        ${watchAvailabilityHtml(movie)}
-        ${movie.personalRating ? `<div class="movie-card__stars">${starString(movie.personalRating)}</div>` : ""}
+        <p class="movie-card__year">${escapeHtml(movie.year || "")}${movie.personalRating ? ` &middot; ${"★".repeat(Math.round(movie.personalRating))}` : ""}</p>
       </div>
     </article>`;
-}
-
-// Compact best-option badge: prefers a subscription service, then rent, then buy.
-function watchAvailabilityHtml(movie) {
-  const wp = movie.watchProviders;
-  if (!wp) return "";
-  const names = (list) => list.map((p) => p.name).slice(0, 2).join(", ");
-  if (wp.flatrate?.length) {
-    return `<div class="movie-card__availability movie-card__availability--stream">▶ ${escapeHtml(names(wp.flatrate))}</div>`;
-  }
-  if (wp.rent?.length) {
-    return `<div class="movie-card__availability movie-card__availability--rent">Rent: ${escapeHtml(names(wp.rent))}</div>`;
-  }
-  if (wp.buy?.length) {
-    return `<div class="movie-card__availability movie-card__availability--buy">Buy: ${escapeHtml(names(wp.buy))}</div>`;
-  }
-  return `<div class="movie-card__availability movie-card__availability--none">Not streaming/renting</div>`;
 }
 
 function renderLists() {
@@ -141,11 +117,6 @@ function renderLists() {
 
 document.getElementById("watchlist-grid").addEventListener("click", (e) => openDetailFromCard(e));
 document.getElementById("watched-grid").addEventListener("click", (e) => openDetailFromCard(e));
-document.getElementById("discover-grid").addEventListener("click", (e) => {
-  const card = e.target.closest(".movie-card");
-  if (!card) return;
-  addDiscoverResultToWatchlist(card.dataset.id);
-});
 
 function openDetailFromCard(e) {
   const card = e.target.closest(".movie-card");
@@ -263,7 +234,6 @@ async function hydrateFromTmdb(movie) {
     movie.poster = data.poster_path ? TMDB_IMG + data.poster_path : null;
     movie.overview = data.overview || "";
     movie.imdbId = data.imdb_id || null;
-    movie.sourcedRatings = data.vote_average ? [{ source: "TMDB", value: data.vote_average.toFixed(1) }] : [];
     saveMovies();
 
     const reviewRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdbId}/reviews?api_key=${encodeURIComponent(settings.tmdbKey)}`);
@@ -326,8 +296,8 @@ async function hydrateFromOmdb(movie) {
     const res = await fetch(`https://www.omdbapi.com/?apikey=${encodeURIComponent(settings.omdbKey)}&i=${encodeURIComponent(movie.imdbId)}`);
     const data = await res.json();
     if (data.Response === "True" && Array.isArray(data.Ratings)) {
-      const extra = data.Ratings.map((r) => ({ source: r.Source, value: r.Value }));
-      movie.sourcedRatings = [...movie.sourcedRatings.filter((r) => r.source === "TMDB"), ...extra];
+      const wanted = ["Internet Movie Database", "Rotten Tomatoes"];
+      movie.sourcedRatings = data.Ratings.filter((r) => wanted.includes(r.Source)).map((r) => ({ source: r.Source, value: r.Value }));
       saveMovies();
     }
   } catch (e) {
@@ -338,53 +308,12 @@ async function hydrateFromOmdb(movie) {
 // Backfills IMDb/Rotten Tomatoes/Metacritic onto movies added before an OMDb key was set.
 async function backfillSourcedRatings() {
   if (!settings.omdbKey) return;
-  const stale = movies.filter((m) => m.imdbId && !(m.sourcedRatings || []).some((r) => r.source !== "TMDB"));
+  const stale = movies.filter((m) => m.imdbId && !(m.sourcedRatings || []).length);
   if (!stale.length) return;
   for (const movie of stale) {
     await hydrateFromOmdb(movie);
   }
   renderLists();
-}
-
-// ---- Discover (new releases) ----
-let discoverResults = [];
-async function loadDiscover() {
-  const hint = document.getElementById("discover-hint");
-  const grid = document.getElementById("discover-grid");
-  if (!settings.tmdbKey) {
-    hint.textContent = "Add a free TMDB API key in Settings to see new releases here.";
-    hint.style.display = "block";
-    grid.innerHTML = "";
-    return;
-  }
-  hint.textContent = "Loading new releases…";
-  hint.style.display = "block";
-  try {
-    const res = await fetch(`https://api.themoviedb.org/3/movie/now_playing?api_key=${encodeURIComponent(settings.tmdbKey)}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.status_message || "Request failed");
-    discoverResults = data.results || [];
-    hint.style.display = "none";
-    grid.innerHTML = discoverResults
-      .map(
-        (r) => `
-        <article class="movie-card" data-id="${r.id}">
-          <img class="movie-card__poster" src="${r.poster_path ? TMDB_IMG + r.poster_path : ""}" alt="" />
-          <div class="movie-card__body">
-            <p class="movie-card__title">${escapeHtml(r.title)}</p>
-            <p class="movie-card__year">${escapeHtml((r.release_date || "").slice(0, 4))}</p>
-            <div class="movie-card__ratings"><span class="rating-chip">TMDB ${r.vote_average?.toFixed(1) ?? "–"}</span></div>
-          </div>
-        </article>`
-      )
-      .join("");
-  } catch (err) {
-    hint.textContent = `Couldn't load new releases: ${err.message}`;
-  }
-}
-function addDiscoverResultToWatchlist(tmdbId) {
-  addFromTmdbId(Number(tmdbId));
-  document.querySelector('.tab[data-tab="watchlist"]').click();
 }
 
 // ---- Add manually ----
@@ -661,6 +590,19 @@ document.getElementById("about-close-btn").addEventListener("click", () => about
 })();
 
 // ---- Boot ----
+// One-time cleanup: drop the TMDB entry we used to store in sourcedRatings (now IMDb/Rotten Tomatoes only).
+(() => {
+  let changed = false;
+  for (const movie of movies) {
+    const filtered = (movie.sourcedRatings || []).filter((r) => r.source !== "TMDB");
+    if (filtered.length !== (movie.sourcedRatings || []).length) {
+      movie.sourcedRatings = filtered;
+      changed = true;
+    }
+  }
+  if (changed) saveMovies();
+})();
+
 renderLists();
 backfillWatchProviders();
 backfillSourcedRatings();
