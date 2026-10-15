@@ -7,6 +7,39 @@ const VIEW_KEY = "cirrus.view";
 const TMDB_IMG = "https://image.tmdb.org/t/p/w342";
 const TMDB_LOGO = "https://image.tmdb.org/t/p/w45";
 
+// ---- Cloud sync (shared across all Kashikoi "cloud" apps via one unified encrypted blob) ----
+const CLOUD_SYNC_ENDPOINT = "https://nimbus-sync.nimbus-sync.workers.dev";
+const CLOUD_SYNC_FORMAT = "kashikoi-encrypted-backup-v1";
+const LEGACY_CLOUD_SYNC_FORMAT = "nimbus-encrypted-backup-v1";
+const UNIFIED_BACKUP_SCHEMA = "kashikoi-app-backup-v1";
+const REMEMBER_CLOUD_PHRASE_KEY = "cirrus.cloudPhrase";
+const CLOUD_KDF_ITERATIONS = 600000;
+// The shared sync Worker only accepts envelopes tagged "Nimbus"/"Cumulus"; since every app
+// reads/writes the same blob, Cirrus tags it "Nimbus" so the PUT validates and the other apps
+// can still decrypt it. The honest author is recorded separately in `writtenBy`.
+const CLOUD_ENVELOPE_APP = "Nimbus";
+const ACCEPTED_ENVELOPE_APPS = new Set(["Nimbus", "Cumulus", "Cirrus", "Stratus"]);
+const RECOVERY_PHRASE_WORD_COUNT = 16;
+const RECOVERY_WORDS = [
+  "anchor", "apricot", "arbor", "atlas", "autumn", "baker", "bamboo", "beacon", "birch", "breeze", "brook", "cabin", "cactus", "canvas", "cedar", "cinder",
+  "clover", "cobalt", "comet", "copper", "coral", "cotton", "cricket", "daisy", "delta", "denim", "dolphin", "dragon", "ember", "falcon", "fennel", "field",
+  "forest", "fossil", "garden", "ginger", "glacier", "harbor", "hazel", "honest", "indigo", "island", "jacket", "jasper", "juniper", "kernel", "lagoon", "lantern",
+  "laurel", "lemon", "linen", "lotus", "maple", "marble", "meadow", "meteor", "misty", "nectar", "nickel", "oasis", "olive", "onward", "orchid", "otter",
+  "palace", "paper", "pepper", "plume", "pocket", "prairie", "quartz", "quiet", "rabbit", "raven", "river", "rocket", "saffron", "sailor", "shadow", "silver",
+  "sincere", "sketch", "spring", "stone", "sunset", "tandem", "timber", "topaz", "tulip", "velvet", "violet", "walnut", "willow", "window", "winter", "zephyr",
+  "acorn", "almond", "amber", "artist", "basket", "blossom", "border", "bottle", "branch", "bridge", "butter", "castle", "cherry", "circle", "coffee", "compass",
+  "dancer", "desert", "doctor", "engine", "fabric", "feather", "flower", "galaxy", "gentle", "golden", "guitar", "hammer", "helmet", "hollow", "jungle", "ladder",
+  "magnet", "market", "mirror", "mother", "museum", "napkin", "needle", "orange", "pencil", "picnic", "planet", "puzzle", "ribbon", "saddle", "school", "secret",
+  "signal", "smooth", "spirit", "summer", "thunder", "ticket", "tomato", "tunnel", "wander", "whisper", "yellow", "zipper", "agenda", "bright", "camera", "donut",
+  "eagle", "fable", "glimmer", "horizon", "icicle", "jovial", "keeper", "lively", "mellow", "native", "opal", "pastel", "quiver", "relish", "shelter", "tropic",
+  "uplift", "voyage", "wonder", "yonder", "zenith", "banjo", "boulder", "carpet", "daring", "estate", "frozen", "gravel", "humble", "inlet", "joyful", "kettle",
+  "little", "memory", "narrow", "object", "pebble", "quaint", "reward", "season", "tablet", "unison", "valley", "wealth", "yearly", "zesty", "banyan", "canopy",
+  "detail", "effort", "future", "gather", "honor", "inside", "jigsaw", "kitten", "legacy", "motion", "number", "option", "poetry", "radial", "sample", "temple",
+  "unique", "vision", "weekly", "yogurt", "zodiac", "bistro", "cloud", "drift", "echo", "fluent", "groove", "haven", "impact", "jewel", "kindle", "lunar",
+  "minute", "novel", "origin", "parcel", "quorum", "rescue", "sierra", "travel", "useful", "volume", "waffle", "yearn", "zinnia", "apollo", "brisk", "crystal",
+];
+let cloudDataDirty = false;
+
 // ---- State ----
 let movies = loadMovies();
 let settings = loadSettings();
@@ -28,6 +61,7 @@ function withMediaDefaults(m) {
 }
 function saveMovies() {
   localStorage.setItem(MOVIES_KEY, JSON.stringify(movies));
+  markCloudDataDirty();
 }
 function loadSettings() {
   try {
@@ -835,15 +869,96 @@ document.getElementById("omdb-key-test-btn").addEventListener("click", async () 
   }
 });
 
-document.getElementById("export-btn").addEventListener("click", () => {
-  const payload = { movies, settings: { tmdbKey: "", omdbKey: "" }, theme: localStorage.getItem(THEME_KEY) || "day", exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+// ---- Cloud sync + unified backup ----
+const cloudPhraseInput = document.getElementById("cloud-phrase");
+const rememberCloudPhraseInput = document.getElementById("remember-cloud-phrase");
+const toggleCloudPhraseBtn = document.getElementById("toggle-cloud-phrase-btn");
+const generateCloudPhraseBtn = document.getElementById("generate-cloud-phrase-btn");
+const cloudPhraseOutput = document.getElementById("cloud-phrase-output");
+const cloudLoadDataBtn = document.getElementById("cloud-load-data-btn");
+const cloudSaveDataBtn = document.getElementById("cloud-save-data-btn");
+const downloadEncryptedDataBtn = document.getElementById("download-encrypted-data-btn");
+const importEncryptedDataBtn = document.getElementById("import-encrypted-data-btn");
+const importEncryptedFileInput = document.getElementById("import-encrypted-file-input");
+const cloudDataStatus = document.getElementById("cloud-data-status");
+
+// Builds the Cirrus slice of the shared unified backup.
+function createCirrusBackupData() {
+  return {
+    version: 1,
+    appName: "Cirrus",
+    exportedAt: new Date().toISOString(),
+    theme: localStorage.getItem(THEME_KEY) || "day",
+    movies,
+  };
+}
+
+// Preserves every other app's slice so saving from Cirrus never clobbers Nimbus/Cumulus/Stratus data.
+function getExistingBackupApps(existingBackup) {
+  if (!existingBackup || typeof existingBackup !== "object") return {};
+  if (existingBackup.schema === UNIFIED_BACKUP_SCHEMA && existingBackup.apps && typeof existingBackup.apps === "object") return { ...existingBackup.apps };
+  if (existingBackup.appName === "Nimbus" || Array.isArray(existingBackup.tabs)) return { nimbus: existingBackup };
+  if (existingBackup.appName === "Cumulus" || Array.isArray(existingBackup.accounts)) return { cumulus: existingBackup };
+  if (existingBackup.appName === "Cirrus" || Array.isArray(existingBackup.movies)) return { cirrus: existingBackup };
+  if (existingBackup.appName === "Stratus" || Array.isArray(existingBackup.stamps)) return { stratus: existingBackup };
+  return {};
+}
+
+function createBackupData(existingBackup) {
+  const apps = getExistingBackupApps(existingBackup);
+  apps.cirrus = createCirrusBackupData();
+  return {
+    schema: UNIFIED_BACKUP_SCHEMA,
+    version: 1,
+    appName: "Kashikoi Apps",
+    exportedAt: new Date().toISOString(),
+    apps,
+  };
+}
+
+function downloadBackup(backup, filename) {
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `cirrus-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function normalizeBackupData(data) {
+  if (!data || typeof data !== "object") throw new Error("Invalid format");
+  const cirrusData = data.schema === UNIFIED_BACKUP_SCHEMA && data.apps && data.apps.cirrus ? data.apps.cirrus : data;
+  const importedMovies = Array.isArray(cirrusData.movies) ? cirrusData.movies.filter((m) => m && typeof m === "object") : null;
+  if (!importedMovies) throw new Error("No Cirrus data");
+  return { movies: importedMovies.map(withMediaDefaults), theme: cirrusData.theme };
+}
+
+function restoreBackupData(data, sourceLabel) {
+  const imported = normalizeBackupData(data);
+  const count = imported.movies.length;
+  if (!confirm(`Restore ${count} title${count === 1 ? "" : "s"} from ${sourceLabel}? This overwrites your current Cirrus list and cannot be undone.`)) return false;
+  movies = imported.movies;
+  saveMovies();
+  if (imported.theme) {
+    localStorage.setItem(THEME_KEY, imported.theme);
+    applyTheme(imported.theme);
+  }
+  renderLists();
+  backfillWatchProviders();
+  backfillSourcedRatings();
+  backfillTmdbDetails();
+  return true;
+}
+
+document.getElementById("export-btn").addEventListener("click", () => {
+  try {
+    downloadBackup(createBackupData(), `cirrus-backup-${new Date().toISOString().slice(0, 10)}.json`);
+  } catch (err) {
+    alert("Export failed: " + err.message);
+  }
 });
 
 document.getElementById("import-btn").addEventListener("click", () => document.getElementById("import-file").click());
@@ -853,26 +968,303 @@ document.getElementById("import-file").addEventListener("change", (e) => {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const imported = JSON.parse(reader.result);
-      if (Array.isArray(imported.movies)) {
-        movies = imported.movies.map(withMediaDefaults);
-        saveMovies();
-      }
-      if (imported.theme) {
-        localStorage.setItem(THEME_KEY, imported.theme);
-        applyTheme(imported.theme);
-      }
-      renderLists();
-      backfillWatchProviders();
-      backfillSourcedRatings();
-      alert("Import complete.");
+      const restored = restoreBackupData(JSON.parse(reader.result), "this backup");
+      if (restored) alert("Import complete.");
     } catch (err) {
-      alert("Couldn't import that file: " + err.message);
+      alert(err.message === "No Cirrus data" ? "That backup doesn't contain any Cirrus titles." : "Couldn't import that file: " + err.message);
     }
   };
   reader.readAsText(file);
   e.target.value = "";
 });
+
+function setCloudDataStatus(message, state) {
+  if (!cloudDataStatus) return;
+  cloudDataStatus.textContent = message;
+  cloudDataStatus.dataset.state = state || "info";
+}
+
+function normalizeCloudPhrase(value) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getCloudPhrase() {
+  return cloudPhraseInput ? normalizeCloudPhrase(cloudPhraseInput.value) : "";
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes.buffer;
+}
+
+async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function deriveCloudKey(phrase, salt) {
+  const phraseKey = await crypto.subtle.importKey("raw", new TextEncoder().encode(phrase), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: CLOUD_KDF_ITERATIONS },
+    phraseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+function createRecoveryPhrase() {
+  const indexes = new Uint8Array(RECOVERY_PHRASE_WORD_COUNT);
+  crypto.getRandomValues(indexes);
+  return [...indexes].map((index) => RECOVERY_WORDS[index]).join(" ");
+}
+
+async function getCloudSyncKey(phrase) {
+  return sha256Hex(`kashikoi-cloud-sync-v1:${phrase}`);
+}
+
+async function getLegacyCloudSyncKey(phrase) {
+  return sha256Hex(`nimbus-sync-location-v1:${phrase}`);
+}
+
+async function encryptCloudBackup(phrase, backupData) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveCloudKey(phrase, salt);
+  const plaintext = new TextEncoder().encode(JSON.stringify(backupData || createBackupData()));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+  return {
+    app: CLOUD_ENVELOPE_APP,
+    writtenBy: "Cirrus",
+    format: CLOUD_SYNC_FORMAT,
+    updatedAt: new Date().toISOString(),
+    kdf: { name: "PBKDF2", hash: "SHA-256", iterations: CLOUD_KDF_ITERATIONS, salt: arrayBufferToBase64(salt) },
+    cipher: { name: "AES-GCM", iv: arrayBufferToBase64(iv) },
+    payload: arrayBufferToBase64(encrypted),
+  };
+}
+
+async function decryptCloudBackup(phrase, envelope) {
+  if (!envelope || !ACCEPTED_ENVELOPE_APPS.has(envelope.app) || (envelope.format !== CLOUD_SYNC_FORMAT && envelope.format !== LEGACY_CLOUD_SYNC_FORMAT)) {
+    throw new Error("Invalid envelope");
+  }
+  const salt = new Uint8Array(base64ToArrayBuffer(envelope.kdf && envelope.kdf.salt));
+  const iv = new Uint8Array(base64ToArrayBuffer(envelope.cipher && envelope.cipher.iv));
+  const encrypted = base64ToArrayBuffer(envelope.payload);
+  const key = await deriveCloudKey(phrase, salt);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
+  return JSON.parse(new TextDecoder().decode(decrypted));
+}
+
+async function fetchEncryptedBackupAtKey(syncKey) {
+  // iOS Safari ignores cache: "no-store" here and replays a stale backup, so vary the URL.
+  const response = await fetch(`${CLOUD_SYNC_ENDPOINT}/sync/${syncKey}?t=${Date.now()}-${Math.random().toString(36).slice(2)}`, { cache: "no-store" });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+async function fetchExistingCloudBackup(phrase) {
+  const syncKey = await getCloudSyncKey(phrase);
+  const envelope = await fetchEncryptedBackupAtKey(syncKey);
+  if (envelope) return { syncKey, envelope };
+  const legacySyncKey = await getLegacyCloudSyncKey(phrase);
+  const legacyEnvelope = await fetchEncryptedBackupAtKey(legacySyncKey);
+  return legacyEnvelope ? { syncKey, envelope: legacyEnvelope } : { syncKey, envelope: null };
+}
+
+async function createMergedCloudBackup(phrase) {
+  const existing = await fetchExistingCloudBackup(phrase);
+  let existingBackup = null;
+  if (existing.envelope) existingBackup = await decryptCloudBackup(phrase, existing.envelope);
+  return { syncKey: await getCloudSyncKey(phrase), backup: createBackupData(existingBackup) };
+}
+
+function markCloudDataDirty() {
+  if (!cloudPhraseInput || !getCloudPhrase()) return;
+  cloudDataDirty = true;
+  setCloudDataStatus("Local changes are not saved to encrypted cloud sync yet.", "warn");
+}
+
+function updateCloudPhraseOutput(phrase) {
+  if (!cloudPhraseOutput) return;
+  cloudPhraseOutput.hidden = !phrase;
+  cloudPhraseOutput.textContent = phrase ? phrase : "";
+}
+
+function saveRememberedCloudPhrase() {
+  if (!rememberCloudPhraseInput) return;
+  if (rememberCloudPhraseInput.checked && getCloudPhrase()) {
+    localStorage.setItem(REMEMBER_CLOUD_PHRASE_KEY, getCloudPhrase());
+  } else if (!rememberCloudPhraseInput.checked) {
+    localStorage.removeItem(REMEMBER_CLOUD_PHRASE_KEY);
+  }
+}
+
+function loadRememberedCloudPhrase() {
+  if (!cloudPhraseInput || !rememberCloudPhraseInput) return;
+  const savedPhrase = localStorage.getItem(REMEMBER_CLOUD_PHRASE_KEY) || "";
+  if (!savedPhrase) return;
+  cloudPhraseInput.value = savedPhrase;
+  rememberCloudPhraseInput.checked = true;
+  setCloudDataStatus("Recovery phrase remembered on this device.", "info");
+}
+
+async function loadCloudData() {
+  const phrase = getCloudPhrase();
+  if (!phrase) {
+    setCloudDataStatus("Enter your recovery phrase first.", "error");
+    return;
+  }
+  if (!crypto.subtle) {
+    setCloudDataStatus("This browser does not support Web Crypto encryption.", "error");
+    return;
+  }
+  setCloudDataStatus("Loading encrypted cloud backup…", "info");
+  try {
+    const existing = await fetchExistingCloudBackup(phrase);
+    if (!existing.envelope) {
+      setCloudDataStatus("No cloud backup exists for this phrase yet. Save to cloud from the first device first.", "error");
+      return;
+    }
+    const data = await decryptCloudBackup(phrase, existing.envelope);
+    const restored = restoreBackupData(data, "encrypted cloud sync");
+    if (!restored) setCloudDataStatus("Cloud load cancelled.", "info");
+  } catch (error) {
+    setCloudDataStatus(error.message === "No Cirrus data" ? "This cloud backup has no Cirrus titles yet." : "Could not decrypt cloud backup. Check the phrase or try again later.", "error");
+  }
+}
+
+async function saveCloudData() {
+  const phrase = getCloudPhrase();
+  if (!phrase) {
+    setCloudDataStatus("Enter or create a recovery phrase first.", "error");
+    return;
+  }
+  if (!crypto.subtle) {
+    setCloudDataStatus("This browser does not support Web Crypto encryption.", "error");
+    return;
+  }
+  setCloudDataStatus("Encrypting and saving cloud backup…", "info");
+  try {
+    const merged = await createMergedCloudBackup(phrase);
+    const response = await fetch(`${CLOUD_SYNC_ENDPOINT}/sync/${merged.syncKey}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(await encryptCloudBackup(phrase, merged.backup)),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    cloudDataDirty = false;
+    setCloudDataStatus("Saved to cloud. Use the same recovery phrase to restore on another device.", "success");
+  } catch (error) {
+    setCloudDataStatus("Could not save encrypted cloud backup. Your local Cirrus data is still safe here.", "error");
+  }
+}
+
+async function downloadEncryptedBackup() {
+  const phrase = getCloudPhrase();
+  if (!phrase) {
+    setCloudDataStatus("Enter or create a recovery phrase first.", "error");
+    return;
+  }
+  if (!crypto.subtle) {
+    setCloudDataStatus("This browser does not support Web Crypto encryption.", "error");
+    return;
+  }
+  setCloudDataStatus("Encrypting backup file…", "info");
+  try {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    downloadBackup(await encryptCloudBackup(phrase), `cirrus-encrypted-backup-${dateStr}.json`);
+    setCloudDataStatus("Encrypted backup downloaded. Keep it with your recovery phrase.", "success");
+  } catch (error) {
+    setCloudDataStatus("Could not create encrypted backup file.", "error");
+  }
+}
+
+function importEncryptedBackup(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const phrase = getCloudPhrase();
+  if (!phrase) {
+    setCloudDataStatus("Enter the recovery phrase before importing an encrypted backup.", "error");
+    event.target.value = "";
+    return;
+  }
+  if (!crypto.subtle) {
+    setCloudDataStatus("This browser does not support Web Crypto encryption.", "error");
+    event.target.value = "";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = async function (evt) {
+    setCloudDataStatus("Decrypting encrypted backup file…", "info");
+    try {
+      const data = await decryptCloudBackup(phrase, JSON.parse(evt.target.result));
+      const restored = restoreBackupData(data, "encrypted backup file");
+      if (!restored) setCloudDataStatus("Encrypted backup import cancelled.", "info");
+    } catch (error) {
+      setCloudDataStatus("Could not decrypt that file. Check the phrase and backup file.", "error");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+}
+
+if (generateCloudPhraseBtn) {
+  generateCloudPhraseBtn.addEventListener("click", () => {
+    const phrase = createRecoveryPhrase();
+    if (cloudPhraseInput) cloudPhraseInput.value = phrase;
+    updateCloudPhraseOutput(phrase);
+    saveRememberedCloudPhrase();
+    setCloudDataStatus("Recovery phrase created. Save these words now — Cirrus cannot recover them.", "warn");
+  });
+}
+if (toggleCloudPhraseBtn && cloudPhraseInput) {
+  toggleCloudPhraseBtn.addEventListener("click", () => {
+    const shouldShow = cloudPhraseInput.type === "password";
+    cloudPhraseInput.type = shouldShow ? "text" : "password";
+    toggleCloudPhraseBtn.textContent = shouldShow ? "Hide" : "Show";
+    toggleCloudPhraseBtn.setAttribute("aria-pressed", shouldShow ? "true" : "false");
+  });
+}
+if (cloudPhraseInput) {
+  cloudPhraseInput.addEventListener("input", () => {
+    updateCloudPhraseOutput("");
+    saveRememberedCloudPhrase();
+    if (cloudDataDirty) setCloudDataStatus("Local changes are not saved to encrypted cloud sync yet.", "warn");
+  });
+  cloudPhraseInput.addEventListener("change", () => {
+    cloudPhraseInput.value = getCloudPhrase();
+    saveRememberedCloudPhrase();
+  });
+}
+if (rememberCloudPhraseInput) {
+  loadRememberedCloudPhrase();
+  rememberCloudPhraseInput.addEventListener("change", () => {
+    saveRememberedCloudPhrase();
+    setCloudDataStatus(rememberCloudPhraseInput.checked ? "Recovery phrase will be remembered on this device." : "Recovery phrase removed from this device.", "info");
+  });
+}
+if (cloudLoadDataBtn) cloudLoadDataBtn.addEventListener("click", loadCloudData);
+if (cloudSaveDataBtn) cloudSaveDataBtn.addEventListener("click", saveCloudData);
+if (downloadEncryptedDataBtn) downloadEncryptedDataBtn.addEventListener("click", downloadEncryptedBackup);
+if (importEncryptedDataBtn && importEncryptedFileInput) {
+  importEncryptedDataBtn.addEventListener("click", () => importEncryptedFileInput.click());
+  importEncryptedFileInput.addEventListener("change", importEncryptedBackup);
+}
 
 document.getElementById("clear-data-btn").addEventListener("click", () => {
   if (!confirm("This deletes all Cirrus movies and settings from this browser. Continue?")) return;

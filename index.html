@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.15.1" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.15.2" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -482,6 +482,34 @@
         </div>
       </div>
 
+      <div class="cloud-sync">
+        <div class="cloud-sync__head">
+          <span class="cloud-sync__title">Encrypted Cloud Sync</span>
+          <span class="cloud-sync__desc">Create or enter a recovery phrase. Cirrus encrypts your backup before saving it online and shares one encrypted blob with the other cloud apps. Lost words cannot be recovered.</span>
+        </div>
+        <div class="cloud-data-field">
+          <span class="cloud-data-field__label">Recovery phrase</span>
+          <span class="cloud-phrase-entry">
+            <input class="cloud-data-field__input" id="cloud-phrase" type="password" autocomplete="off" spellcheck="false" placeholder="sixteen recovery words" aria-label="Recovery phrase" />
+            <button type="button" class="cloud-phrase-entry__toggle" id="toggle-cloud-phrase-btn" aria-pressed="false">Show</button>
+          </span>
+        </div>
+        <p class="cloud-phrase-output" id="cloud-phrase-output" hidden></p>
+        <label class="cloud-remember-option">
+          <input type="checkbox" id="remember-cloud-phrase" />
+          <span>Remember on this device</span>
+        </label>
+        <div class="cloud-sync__actions">
+          <button type="button" class="btn btn--ghost btn--small" id="generate-cloud-phrase-btn">Create phrase</button>
+          <button type="button" class="btn btn--ghost btn--small" id="cloud-load-data-btn">Restore from cloud</button>
+          <button type="button" class="btn btn--ghost btn--small" id="cloud-save-data-btn">Save to cloud</button>
+          <button type="button" class="btn btn--ghost btn--small" id="download-encrypted-data-btn">Download encrypted file</button>
+          <button type="button" class="btn btn--ghost btn--small" id="import-encrypted-data-btn">Import encrypted file</button>
+          <input type="file" id="import-encrypted-file-input" accept="application/json" hidden />
+        </div>
+        <p class="cloud-data-status" id="cloud-data-status" aria-live="polite"></p>
+      </div>
+
       <div class="settings-row">
         <span>Danger zone</span>
         <button type="button" class="btn btn--danger btn--small" id="clear-data-btn">Clear All Data</button>
@@ -500,12 +528,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.10.15.1</p>
+      <p class="about-modal__version">Version 2026.10.15.2</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.10.15.1"></script>
+  <script src="app.js?v=2026.10.15.2"></script>
 </body>
 </html>
