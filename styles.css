@@ -262,6 +262,19 @@ html.mobile .search-bar {
   font-size: 13px;
 }
 
+.search-result__type {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
 /* ---- Genre categories ---- */
 .category {
   margin-bottom: 24px;
@@ -330,6 +343,21 @@ html.mobile .search-bar {
   position: relative;
 }
 
+.movie-card__type-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.82);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
 .movie-card__rt-badge {
   position: absolute;
   top: 6px;
@@ -388,6 +416,211 @@ html.mobile .search-bar {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ---- Search-by mode selector ---- */
+.search-bar__mode {
+  font: inherit;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+html.dark .search-bar__mode {
+  background: var(--card-strong);
+}
+
+/* ---- Matched-person header in search results ---- */
+.search-person {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+
+.search-person__name {
+  font-weight: 700;
+}
+
+.search-person__role {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---- View switcher (Genres / Priority / Watched) ---- */
+.view-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.view-switch__btn {
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.view-switch__btn:hover {
+  color: var(--text);
+}
+
+.view-switch__btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---- Priority / watched line lists ---- */
+.list-hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+.line-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.line-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: transform 0.1s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.line-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+
+.line-item--draggable {
+  cursor: grab;
+}
+
+.line-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.line-item__handle {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: -2px;
+  cursor: grab;
+  user-select: none;
+}
+
+.line-item__rank {
+  min-width: 22px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.line-item__thumb {
+  width: 34px;
+  height: 51px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #cfe3f5, #e8f4fc);
+  flex-shrink: 0;
+}
+
+.line-item__thumb--empty {
+  border: 1px dashed var(--line);
+}
+
+.line-item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 140px;
+}
+
+.line-item__title {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line-item__sub {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line-item__rt {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.line-item__rt.is-fresh {
+  background: rgba(216, 32, 24, 0.88);
+}
+
+.line-item__rt.is-rotten {
+  background: rgba(92, 74, 46, 0.9);
+}
+
+.line-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.line-item__stars {
+  flex-shrink: 0;
+  color: #f4b41a;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.line-item__date {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- Star rating input (detail modal) ---- */

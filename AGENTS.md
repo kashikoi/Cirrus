@@ -14,11 +14,22 @@ been built, why, and non-obvious details worth knowing before changing anything.
   rating against sourced ratings (TMDB/IMDb/Rotten Tomatoes/Metacritic) and a few written
   reviews — so years later you never have to wonder whether you've seen something, or what
   you thought of it.
-- UI: a single page, no tabs. Movies are grouped into genre-category sections (from TMDB's
-  `genres`, falling back to "Uncategorized" for manually added or un-hydrated movies).
-  `status` (`watchlist`/`watched`) is tracked per-movie but doesn't split them into separate
-  views — a watched movie stays in its genre section, just with a `.movie-card--watched`
-  border/glow and a checkmark badge overlaid on the poster.
+- UI: a single page with a three-way view switcher (`.view-switch`, state in
+  `cirrus.view`): **Genres**, **Priority**, **Watched**.
+  - Genres + Priority are two views of the *watchlist* (`status === "watchlist"`):
+    Genres groups cards into genre-category sections (from TMDB's `genres`, falling back to
+    "Uncategorized"); Priority is a draggable line-item list (`.line-item--draggable`)
+    ordered by a per-movie `priority` number — HTML5 drag-and-drop reorders and persists it
+    (`ensurePriorities()` backfills missing values; `commitPriorityOrder()` saves new order).
+  - Watched is its own view (`status === "watched"`), a line-item list sorted by
+    `watchedDate` desc showing your star rating + RT badge + date.
+  - NOTE: watched movies are no longer shown in the genre view — the views are now split by
+    status. `.movie-card--watched` styling still exists but only shows if a watched movie
+    ever appears as a card.
+- Search (`#search-mode`) can query by **Title** (`/search/movie`), **Actor**, or
+  **Director**. Actor/Director use `/search/person` → best-matching person (prefers
+  `known_for_department`) → `/person/{id}/movie_credits`, listing `cast` (actor) or
+  `crew` filtered to `job === "Director"`; results show a `.search-person` header.
 - Intent: a DYNAMIC, never-"final" tool that keeps evolving as the user uses it. Purely
   personal use, not a product.
 - **Design Inspiration & Sister Apps:** Cumulus (personal finance) and Nimbus (to-do /
@@ -37,10 +48,26 @@ been built, why, and non-obvious details worth knowing before changing anything.
   release time (see "Build/release process" below) — not every commit.
 
 ## Data model (localStorage keys)
-- `cirrus.movies` — array of movie objects:
-  `{id, tmdbId, title, year, poster, overview, status, personalRating, watchedDate, notes,
-  imdbId, genres: [string], sourcedRatings: [{source, value}], reviews: [{author, content}],
-  watchProviders, addedAt}`
+- `cirrus.movies` — array of movie/series objects:
+  `{id, tmdbId, mediaType, seriesType, title, year, poster, overview, status, personalRating,
+  watchedDate, notes, imdbId, genres: [string], sourcedRatings: [{source, value}],
+  reviews: [{author, content}], watchProviders, priority, addedAt}`
+  - `priority` is a 0-based rank among watchlist movies, set by the Priority view's
+    drag-to-reorder (backfilled by `ensurePriorities()` for older data).
+  - `mediaType` is `"movie"` or `"tv"` — the app tracks both films and TV series/mini-series
+    as single units (no per-season/episode tracking). It's part of the record's identity:
+    `tmdbId` is NOT unique across the two namespaces (movie 123 ≠ tv 123), so dedupe and all
+    TMDB fetches key on `mediaType` via the `tmdbType(movie)` helper (`/movie/…` vs `/tv/…`).
+    Legacy records without it default to `"movie"` through `withMediaDefaults()` (applied on
+    load and import). TV uses `name`/`first_air_date` (mapped to `title`/`year` on hydrate),
+    its imdb id comes from `/tv/{id}/external_ids` (not the detail object), and reviews/watch
+    providers use the parallel `/tv/…` endpoints.
+  - `seriesType` is TMDB's TV `type` (e.g. `"Miniseries"`, `"Scripted"`), `null` for movies.
+    `mediaTypeLabel()` turns it into the card/line/detail badge: "Mini-series" when it matches
+    /mini/i, else "Series" for TV, else "" for movies.
+  - Title search uses `/search/multi` (movies + TV mixed, filtered by `media_type`); actor/
+    director search uses `/person/{id}/combined_credits`. `normalizeResult()` flattens any
+    movie/tv/multi result into `{id, mediaType, title, year, poster_path}` for rendering.
   - `status` is `"watchlist"` or `"watched"` — affects only the watched-card highlight, not
     which genre section a movie appears in (see "UI" above).
   - `genres` is the movie's TMDB genre names; the card is filed under the first one (or
