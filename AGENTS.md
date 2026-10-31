@@ -14,8 +14,8 @@ been built, why, and non-obvious details worth knowing before changing anything.
   rating against sourced ratings (TMDB/IMDb/Rotten Tomatoes/Metacritic) and a few written
   reviews — so years later you never have to wonder whether you've seen something, or what
   you thought of it.
-- UI: a single page with a three-way view switcher (`.view-switch`, state in
-  `cirrus.view`): **Genres**, **Priority**, **Watched**.
+- UI: a single page with a four-way view switcher (`.view-switch`, state in
+  `cirrus.view`): **Genres**, **Priority**, **Watched**, **Discover**.
   - Genres + Priority are two views of the *watchlist* (`status === "watchlist"`):
     Genres groups cards into genre-category sections (from TMDB's `genres`, falling back to
     "Uncategorized"); Priority is a draggable line-item list (`.line-item--draggable`)
@@ -24,8 +24,18 @@ been built, why, and non-obvious details worth knowing before changing anything.
   - Watched is its own view (`status === "watched"`), a line-item list sorted by
     `watchedDate` desc showing your star rating + RT badge + date.
   - NOTE: watched movies are no longer shown in the genre view — the views are now split by
-    status. `.movie-card--watched` styling still exists but only shows if a watched movie
-    ever appears as a card.
+    status. `.movie-card--watched` + `.movie-card__watched-badge` are reused by Discover to
+    mark titles already on the user's list.
+  - Discover browses TMDB (not the user's list): `/genre/movie/list`, then
+    `/discover/movie` per genre × mode (`released` = primary release in the past year,
+    `upcoming` = after today), `sort_by=popularity.desc`, `DISCOVER_PAGES_PER_GENRE` pages
+    each, `DISCOVER_CONCURRENCY` parallel requests, one 429 retry in `tmdbGet()`. Rows are
+    horizontal (`.discover-row`) with a per-genre "More →" that fetches the next page.
+    Results without posters are dropped; upcoming rows are displayed soonest-first. Data
+    lives only in memory (`discoverState`), loaded on boot if Discover is the current view
+    and on tab switch when older than `DISCOVER_STALE_MS`. Cards open `#discover-modal`
+    (preview + "Add to Watchlist" via `addFromTmdbId`, or "Open in My List" if present).
+    The feed click handler routes to `handleDiscoverClick()` while Discover is active.
 - Search (`#search-mode`) can query by **Title** (`/search/movie`), **Actor**, or
   **Director**. Actor/Director use `/search/person` → best-matching person (prefers
   `known_for_department`) → `/person/{id}/movie_credits`, listing `cast` (actor) or

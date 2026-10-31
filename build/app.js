@@ -44,7 +44,7 @@ let cloudDataDirty = false;
 let movies = loadMovies();
 let settings = loadSettings();
 let activeDetailId = null;
-let currentView = localStorage.getItem(VIEW_KEY) || "genres"; // genres | priority | watched
+let currentView = localStorage.getItem(VIEW_KEY) || "genres"; // genres | priority | watched | discover
 let currentSearchMode = "title"; // title | actor | director
 
 function loadMovies() {
@@ -274,6 +274,16 @@ function renderLists() {
     b.classList.toggle("view-switch__btn--active", b.dataset.view === currentView);
   });
 
+  if (currentView === "discover") {
+    empty.style.display = "none";
+    const scrollByRow = new Map([...feed.querySelectorAll("[data-genre-row]")].map((row) => [row.dataset.genreRow, row.scrollLeft]));
+    feed.innerHTML = renderDiscoverView();
+    feed.querySelectorAll("[data-genre-row]").forEach((row) => {
+      if (scrollByRow.has(row.dataset.genreRow)) row.scrollLeft = scrollByRow.get(row.dataset.genreRow);
+    });
+    return;
+  }
+
   const watchlist = movies.filter((m) => m.status === "watchlist");
   const watched = movies.filter((m) => m.status === "watched");
 
@@ -307,10 +317,11 @@ document.querySelector(".view-switch").addEventListener("click", (e) => {
   currentView = btn.dataset.view;
   localStorage.setItem(VIEW_KEY, currentView);
   renderLists();
+  if (currentView === "discover" && Date.now() - discoverState.loadedAt > DISCOVER_STALE_MS) loadDiscover();
 });
 
 const feedEl = document.getElementById("movie-feed");
-feedEl.addEventListener("click", (e) => openDetailFromCard(e));
+feedEl.addEventListener("click", (e) => (currentView === "discover" ? handleDiscoverClick(e) : openDetailFromCard(e)));
 
 function openDetailFromCard(e) {
   if (feedEl.classList.contains("is-dragging")) return;
@@ -318,6 +329,311 @@ function openDetailFromCard(e) {
   if (!el || !feedEl.contains(el)) return;
   openDetailModal(el.dataset.id);
 }
+
+// ---- Discover tab ----
+// Browses TMDB's /discover/movie per genre: titles released in the past year, or upcoming.
+// Data is session-only (never saved) and refetched on page load or when stale.
+const DISCOVER_PAGES_PER_GENRE = 2;
+const DISCOVER_STALE_MS = 10 * 60 * 1000;
+const DISCOVER_CONCURRENCY = 6;
+const discoverModal = document.getElementById("discover-modal");
+let discoverMode = "released"; // released | upcoming
+let activeDiscoverId = null;
+const discoverState = {
+  token: 0,
+  loading: false,
+  loadedAt: 0,
+  done: 0,
+  total: 0,
+  error: "",
+  genres: [],
+  sections: { released: new Map(), upcoming: new Map() },
+  byId: new Map(),
+};
+
+function isoDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function discoverDateRange(mode) {
+  const today = new Date();
+  if (mode === "upcoming") {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    return { "primary_release_date.gte": isoDate(tomorrow) };
+  }
+  const yearAgo = new Date(today);
+  yearAgo.setFullYear(today.getFullYear() - 1);
+  return { "primary_release_date.gte": isoDate(yearAgo), "primary_release_date.lte": isoDate(today) };
+}
+
+async function tmdbGet(path, params = {}, retried = false) {
+  const query = new URLSearchParams({ api_key: settings.tmdbKey, ...params });
+  const res = await fetch(`https://api.themoviedb.org/3/${path}?${query}`);
+  if (res.status === 429 && !retried) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return tmdbGet(path, params, true);
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.status_message || `TMDB request failed (${res.status})`);
+  return data;
+}
+
+async function fetchDiscoverPage(mode, genreId, page) {
+  const data = await tmdbGet("discover/movie", {
+    with_genres: String(genreId),
+    sort_by: "popularity.desc",
+    include_adult: "false",
+    include_video: "false",
+    page: String(page),
+    ...discoverDateRange(mode),
+  });
+  return { results: (data.results || []).filter((r) => r.poster_path), totalPages: Math.min(data.total_pages || 1, 500) };
+}
+
+function mergeDiscoverResults(section, results) {
+  const seen = new Set(section.items.map((r) => r.id));
+  for (const r of results) {
+    discoverState.byId.set(r.id, r);
+    if (!seen.has(r.id)) {
+      seen.add(r.id);
+      section.items.push(r);
+    }
+  }
+}
+
+async function runWithConcurrency(tasks, limit) {
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+    while (next < tasks.length) await tasks[next++]();
+  });
+  await Promise.all(workers);
+}
+
+async function loadDiscover() {
+  if (!settings.tmdbKey) {
+    renderLists();
+    return;
+  }
+  const token = ++discoverState.token;
+  discoverState.loading = true;
+  discoverState.error = "";
+  discoverState.done = 0;
+  discoverState.total = 0;
+  renderLists();
+  try {
+    const genreData = await tmdbGet("genre/movie/list");
+    if (token !== discoverState.token) return;
+    const genres = (genreData.genres || []).sort((a, b) => a.name.localeCompare(b.name));
+    const sections = { released: new Map(), upcoming: new Map() };
+    const byId = new Map();
+    let failures = 0;
+    const tasks = [];
+    for (const mode of ["released", "upcoming"]) {
+      for (const genre of genres) {
+        const section = { items: [], page: 0, totalPages: 1, loadingMore: false };
+        sections[mode].set(genre.id, section);
+        for (let page = 1; page <= DISCOVER_PAGES_PER_GENRE; page++) {
+          tasks.push(async () => {
+            try {
+              const { results, totalPages } = await fetchDiscoverPage(mode, genre.id, page);
+              results.forEach((r) => byId.set(r.id, r));
+              section.pages = section.pages || [];
+              section.pages[page] = results;
+              section.totalPages = totalPages;
+              section.page = Math.max(section.page, page);
+            } catch (e) {
+              failures++;
+            } finally {
+              discoverState.done++;
+              if (token === discoverState.token) updateDiscoverProgress();
+            }
+          });
+        }
+      }
+    }
+    discoverState.total = tasks.length;
+    await runWithConcurrency(tasks, DISCOVER_CONCURRENCY);
+    if (token !== discoverState.token) return;
+    // Pages finish out of order; stitch them back in popularity order.
+    for (const mode of ["released", "upcoming"]) {
+      sections[mode].forEach((section) => {
+        const pages = section.pages || [];
+        delete section.pages;
+        pages.forEach((results) => results && mergeDiscoverResults(section, results));
+      });
+    }
+    discoverState.genres = genres;
+    discoverState.sections = sections;
+    discoverState.byId = new Map([...discoverState.byId, ...byId]);
+    discoverState.loadedAt = Date.now();
+    if (failures === tasks.length) discoverState.error = "Couldn't reach TMDB. Try Refresh in a moment.";
+  } catch (err) {
+    if (token === discoverState.token) discoverState.error = err.message;
+  } finally {
+    if (token === discoverState.token) {
+      discoverState.loading = false;
+      renderLists();
+    }
+  }
+}
+
+async function loadMoreDiscoverGenre(genreId) {
+  const section = discoverState.sections[discoverMode].get(genreId);
+  if (!section || section.loadingMore || section.page >= section.totalPages) return;
+  const mode = discoverMode;
+  section.loadingMore = true;
+  renderLists();
+  try {
+    const { results, totalPages } = await fetchDiscoverPage(mode, genreId, section.page + 1);
+    section.page += 1;
+    section.totalPages = totalPages;
+    mergeDiscoverResults(section, results);
+  } catch (err) {
+    alert("Couldn't load more titles: " + err.message);
+  } finally {
+    section.loadingMore = false;
+    renderLists();
+  }
+}
+
+function findListMovieByTmdbId(tmdbId) {
+  return movies.find((m) => m.tmdbId === tmdbId && tmdbType(m) === "movie");
+}
+
+function formatReleaseDate(date) {
+  if (!date) return "";
+  const parsed = new Date(`${date}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function discoverCardHtml(r) {
+  const onList = findListMovieByTmdbId(r.id);
+  const score = r.vote_count >= 20 && r.vote_average ? `<span class="movie-card__type-badge">TMDB ${r.vote_average.toFixed(1)}</span>` : "";
+  return `
+    <article class="movie-card${onList ? " movie-card--watched" : ""}" data-discover-id="${r.id}">
+      <div class="movie-card__poster-wrap">
+        <img class="movie-card__poster" src="${escapeHtml(TMDB_IMG + r.poster_path)}" alt="" loading="lazy" />
+        ${onList ? `<span class="movie-card__watched-badge" title="On your list">✓</span>` : ""}
+        ${score}
+      </div>
+      <div class="movie-card__body">
+        <p class="movie-card__title">${escapeHtml(r.title)}</p>
+        <p class="movie-card__year">${escapeHtml(formatReleaseDate(r.release_date))}</p>
+      </div>
+    </article>`;
+}
+
+function updateDiscoverProgress() {
+  const status = document.getElementById("discover-status");
+  if (status && discoverState.loading) status.textContent = discoverStatusText();
+}
+
+function discoverStatusText() {
+  if (discoverState.loading) return discoverState.total ? `Loading from TMDB… ${discoverState.done}/${discoverState.total}` : "Loading from TMDB…";
+  if (discoverState.loadedAt) return `Updated ${new Date(discoverState.loadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  return "";
+}
+
+function renderDiscoverView() {
+  const modeBtn = (mode, label) =>
+    `<button type="button" class="view-switch__btn${discoverMode === mode ? " view-switch__btn--active" : ""}" data-discover-mode="${mode}">${label}</button>`;
+  const toolbar = `
+    <div class="discover-toolbar">
+      <div class="view-switch discover-toolbar__modes" role="group" aria-label="Discover range">
+        ${modeBtn("released", "New releases · past year")}
+        ${modeBtn("upcoming", "Coming soon")}
+      </div>
+      <span class="discover-status" id="discover-status">${escapeHtml(discoverStatusText())}</span>
+      <button type="button" class="btn btn--ghost btn--small" data-discover-refresh ${discoverState.loading ? "disabled" : ""}>Refresh</button>
+    </div>`;
+
+  if (!settings.tmdbKey) {
+    return `${toolbar}<p class="empty-state">Add a TMDB API key in Settings to discover new and upcoming movies.</p>`;
+  }
+  if (discoverState.error) {
+    return `${toolbar}<p class="empty-state">Discover failed: ${escapeHtml(discoverState.error)}</p>`;
+  }
+  const sections = discoverState.sections[discoverMode];
+  const genreHtml = discoverState.genres
+    .map((genre) => {
+      const section = sections.get(genre.id);
+      if (!section || !section.items.length) return "";
+      const items = discoverMode === "upcoming"
+        ? [...section.items].sort((a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999"))
+        : section.items;
+      const more = section.page < section.totalPages
+        ? `<button type="button" class="discover-more" data-genre-more="${genre.id}" ${section.loadingMore ? "disabled" : ""}>${section.loadingMore ? "Loading…" : "More →"}</button>`
+        : "";
+      return `
+        <section class="category">
+          <h2 class="category__title">${escapeHtml(genre.name)} <span class="discover-genre__count">${items.length}</span></h2>
+          <div class="discover-row" data-genre-row="${discoverMode}-${genre.id}">${items.map(discoverCardHtml).join("")}${more}</div>
+        </section>`;
+    })
+    .join("");
+  if (!genreHtml) {
+    return `${toolbar}${discoverState.loading ? "" : `<p class="empty-state">No titles found.</p>`}`;
+  }
+  return toolbar + genreHtml;
+}
+
+function handleDiscoverClick(e) {
+  const modeBtn = e.target.closest("[data-discover-mode]");
+  if (modeBtn) {
+    discoverMode = modeBtn.dataset.discoverMode;
+    renderLists();
+    return;
+  }
+  if (e.target.closest("[data-discover-refresh]")) {
+    loadDiscover();
+    return;
+  }
+  const moreBtn = e.target.closest("[data-genre-more]");
+  if (moreBtn) {
+    loadMoreDiscoverGenre(Number(moreBtn.dataset.genreMore));
+    return;
+  }
+  const card = e.target.closest("[data-discover-id]");
+  if (card) openDiscoverModal(Number(card.dataset.discoverId));
+}
+
+function openDiscoverModal(tmdbId) {
+  const r = discoverState.byId.get(tmdbId);
+  if (!r) return;
+  activeDiscoverId = tmdbId;
+  const genreNames = (r.genre_ids || [])
+    .map((id) => (discoverState.genres.find((g) => g.id === id) || {}).name)
+    .filter(Boolean);
+  const isUpcoming = (r.release_date || "") > isoDate(new Date());
+  document.getElementById("discover-title").textContent = r.title;
+  document.getElementById("discover-meta").textContent = [
+    r.release_date ? `${isUpcoming ? "Releases" : "Released"} ${formatReleaseDate(r.release_date)}` : "",
+    genreNames.join(", "),
+  ].filter(Boolean).join(" · ");
+  document.getElementById("discover-overview").textContent = r.overview || "No description yet.";
+  const poster = document.getElementById("discover-poster");
+  poster.src = r.poster_path ? TMDB_IMG + r.poster_path : "";
+  poster.style.display = r.poster_path ? "block" : "none";
+  const score = r.vote_count ? `TMDB: ${r.vote_average.toFixed(1)} (${r.vote_count} votes)` : "TMDB: not yet rated";
+  document.getElementById("discover-ratings").innerHTML =
+    `<a class="rating-chip rating-chip--link" href="https://www.themoviedb.org/movie/${r.id}" target="_blank" rel="noopener noreferrer" title="Open on TMDB">${escapeHtml(score)} ↗</a>`;
+  const onList = findListMovieByTmdbId(tmdbId);
+  document.getElementById("discover-add-btn").textContent = onList ? "Open in My List" : "Add to Watchlist";
+  discoverModal.classList.add("open");
+}
+
+document.getElementById("discover-close-btn").addEventListener("click", () => discoverModal.classList.remove("open"));
+document.getElementById("discover-add-btn").addEventListener("click", () => {
+  if (activeDiscoverId == null) return;
+  discoverModal.classList.remove("open");
+  const existing = findListMovieByTmdbId(activeDiscoverId);
+  if (existing) {
+    openDetailModal(existing.id);
+    return;
+  }
+  addFromTmdbId(activeDiscoverId, "movie");
+});
 
 // ---- Priority drag-and-drop reordering ----
 let draggedEl = null;
@@ -838,6 +1154,10 @@ document.getElementById("settings-close-btn").addEventListener("click", () => {
   settingsModal.classList.remove("open");
   backfillWatchProviders();
   backfillSourcedRatings();
+  if (currentView === "discover") {
+    if (settings.tmdbKey && !discoverState.loadedAt && !discoverState.loading) loadDiscover();
+    else renderLists();
+  }
 });
 
 function setKeyTestStatus(elId, state, message) {
@@ -1310,7 +1630,7 @@ document.getElementById("about-link").addEventListener("click", () => {
 document.getElementById("about-close-btn").addEventListener("click", () => aboutModal.classList.remove("open"));
 
 // Close modals on backdrop click
-[detailModal, manualModal, settingsModal, aboutModal].forEach((modal) => {
+[detailModal, manualModal, settingsModal, aboutModal, discoverModal].forEach((modal) => {
   modal.addEventListener("click", (e) => {
     if (e.target === modal) modal.classList.remove("open");
   });
@@ -1351,6 +1671,7 @@ async function backfillTmdbDetails() {
 
 // ---- Boot ----
 renderLists();
+if (currentView === "discover") loadDiscover();
 backfillWatchProviders();
 backfillSourcedRatings();
 backfillTmdbDetails();
