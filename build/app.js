@@ -92,6 +92,17 @@ function starString(rating, max = 5) {
 function tmdbType(movie) {
   return (movie.mediaType || "movie") === "tv" ? "tv" : "movie";
 }
+// External page for a sourced rating chip; null when we can't build a link.
+function sourcedRatingUrl(movie, source) {
+  if (source === "TMDB" && movie.tmdbId) return `https://www.themoviedb.org/${tmdbType(movie)}/${encodeURIComponent(movie.tmdbId)}`;
+  if (source === "Internet Movie Database" && movie.imdbId) return `https://www.imdb.com/title/${encodeURIComponent(movie.imdbId)}/`;
+  if (source === "Rotten Tomatoes") {
+    if (/^https?:\/\/(www\.)?rottentomatoes\.com\//i.test(movie.tomatoUrl || "")) return movie.tomatoUrl;
+    // OMDb rarely returns a direct RT URL, so fall back to RT's own search.
+    if (movie.title) return `https://www.rottentomatoes.com/search?search=${encodeURIComponent(movie.title)}`;
+  }
+  return null;
+}
 // Short label shown on series cards/items; "" for ordinary movies.
 function mediaTypeLabel(movie) {
   if ((movie.mediaType || "movie") !== "tv") return "";
@@ -634,9 +645,10 @@ async function backfillWatchProviders() {
 
 async function hydrateFromOmdb(movie) {
   try {
-    const res = await fetch(`https://www.omdbapi.com/?apikey=${encodeURIComponent(settings.omdbKey)}&i=${encodeURIComponent(movie.imdbId)}`);
+    const res = await fetch(`https://www.omdbapi.com/?apikey=${encodeURIComponent(settings.omdbKey)}&i=${encodeURIComponent(movie.imdbId)}&tomatoes=true`);
     const data = await res.json();
     if (data.Response === "True" && Array.isArray(data.Ratings)) {
+      if (/^https?:\/\//i.test(data.tomatoURL || "")) movie.tomatoUrl = data.tomatoURL;
       const wanted = ["Internet Movie Database", "Rotten Tomatoes"];
       const extra = data.Ratings.filter((r) => wanted.includes(r.Source)).map((r) => ({ source: r.Source, value: r.Value }));
       movie.sourcedRatings = [...movie.sourcedRatings.filter((r) => r.source === "TMDB"), ...extra];
@@ -720,7 +732,13 @@ function openDetailModal(id) {
   document.getElementById("watched-date-field").style.display = movie.status === "watched" ? "block" : "none";
 
   document.getElementById("detail-sourced-ratings").innerHTML = (movie.sourcedRatings || [])
-    .map((r) => `<span class="rating-chip">${escapeHtml(r.source)}: ${escapeHtml(r.value)}</span>`)
+    .map((r) => {
+      const label = `${escapeHtml(r.source)}: ${escapeHtml(r.value)}`;
+      const url = sourcedRatingUrl(movie, r.source);
+      return url
+        ? `<a class="rating-chip rating-chip--link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Open on ${escapeHtml(r.source)}">${label} ↗</a>`
+        : `<span class="rating-chip">${label}</span>`;
+    })
     .join("");
 
   document.getElementById("detail-watch-providers").innerHTML = watchProvidersDetailHtml(movie);
@@ -889,6 +907,7 @@ function createCirrusBackupData() {
     appName: "Cirrus",
     exportedAt: new Date().toISOString(),
     theme: localStorage.getItem(THEME_KEY) || "day",
+    settings: { tmdbKey: settings.tmdbKey || "", omdbKey: settings.omdbKey || "", region: settings.region || "US" },
     movies,
   };
 }
@@ -933,18 +952,27 @@ function normalizeBackupData(data) {
   const cirrusData = data.schema === UNIFIED_BACKUP_SCHEMA && data.apps && data.apps.cirrus ? data.apps.cirrus : data;
   const importedMovies = Array.isArray(cirrusData.movies) ? cirrusData.movies.filter((m) => m && typeof m === "object") : null;
   if (!importedMovies) throw new Error("No Cirrus data");
-  return { movies: importedMovies.map(withMediaDefaults), theme: cirrusData.theme };
+  const rawSettings = cirrusData.settings && typeof cirrusData.settings === "object" ? cirrusData.settings : null;
+  const importedSettings = rawSettings
+    ? Object.fromEntries(["tmdbKey", "omdbKey", "region"].filter((key) => typeof rawSettings[key] === "string" && rawSettings[key].trim()).map((key) => [key, rawSettings[key].trim()]))
+    : null;
+  return { movies: importedMovies.map(withMediaDefaults), theme: cirrusData.theme, settings: importedSettings };
 }
 
 function restoreBackupData(data, sourceLabel) {
   const imported = normalizeBackupData(data);
   const count = imported.movies.length;
-  if (!confirm(`Restore ${count} title${count === 1 ? "" : "s"} from ${sourceLabel}? This overwrites your current Cirrus list and cannot be undone.`)) return false;
+  if (!confirm(`Restore ${count} title${count === 1 ? "" : "s"} from ${sourceLabel}? This overwrites your current Cirrus list${imported.settings && Object.keys(imported.settings).length ? " and API key/region settings" : ""} and cannot be undone.`)) return false;
   movies = imported.movies;
   saveMovies();
   if (imported.theme) {
     localStorage.setItem(THEME_KEY, imported.theme);
     applyTheme(imported.theme);
+  }
+  // Older backups have no settings; only overwrite keys the backup actually provides.
+  if (imported.settings && Object.keys(imported.settings).length) {
+    Object.assign(settings, imported.settings);
+    saveSettings();
   }
   renderLists();
   backfillWatchProviders();

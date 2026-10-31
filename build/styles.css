@@ -1009,6 +1009,17 @@ html.mobile .detail {
   white-space: nowrap;
 }
 
+.rating-chip--link {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rating-chip--link:hover,
+.rating-chip--link:focus-visible {
+  background: rgba(61, 134, 216, 0.24);
+  text-decoration: underline;
+}
+
 .watch-providers {
   margin-bottom: 14px;
 }

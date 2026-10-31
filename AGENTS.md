@@ -74,7 +74,10 @@ been built, why, and non-obvious details worth knowing before changing anything.
     "Uncategorized" if empty). Backfilled for pre-existing movies by `backfillTmdbDetails()`.
   - `personalRating` is 0–5 (stars).
   - `sourcedRatings` is populated from TMDB (`vote_average`) and, if an OMDb key is set,
-    from OMDb's `Ratings` array (IMDb, Rotten Tomatoes, Metacritic).
+    from OMDb's `Ratings` array (IMDb, Rotten Tomatoes, Metacritic). In the detail modal each
+    chip links out via `sourcedRatingUrl()`: TMDB → themoviedb.org/{movie|tv}/{tmdbId}, IMDb →
+    imdb.com/title/{imdbId}, Rotten Tomatoes → optional `tomatoUrl` (OMDb `tomatoURL`, rarely
+    populated) else an RT search for the title.
   - `watchProviders` is `null` until hydrated, else
     `{region, link, flatrate: [{name, logo}], rent: [...], buy: [...]}` sourced from TMDB's
     `/movie/{id}/watch/providers` endpoint (JustWatch data) for the configured region. Stale
@@ -84,7 +87,10 @@ been built, why, and non-obvious details worth knowing before changing anything.
   TMDB key, search, reviews, watch-provider availability, and auto-filled
   posters/overviews are unavailable, but manual add, personal ratings, notes, and watched
   tracking still work fully offline. `region` is a 2-letter country code (default `"US"`)
-  used for the "where to watch" availability lookup.
+  used for the "where to watch" availability lookup. These settings are included in the
+  Cirrus backup slice (`apps.cirrus.settings`) for JSON export, encrypted file, and cloud
+  sync; on restore only non-empty values present in the backup overwrite local settings, so
+  older backups without `settings` leave existing keys untouched.
 - `cirrus.theme` — `"day"`, `"twilight"`, `"night"`, or `"random"` (same atmosphere scheme
   as Cumulus/Nimbus).
 
@@ -96,7 +102,7 @@ been built, why, and non-obvious details worth knowing before changing anything.
 - **OMDb** (omdbapi.com) — optional, supplies IMDb/Rotten Tomatoes/Metacritic ratings via
   the movie's `imdb_id` (fetched from TMDB movie details). Free API key, user-supplied.
 - Never hardcode a real API key in source — these are entered by the user and stored only
-  in their browser's localStorage.
+  in their browser's localStorage (and in the user's own backups/encrypted cloud sync).
 
 ## Build/release process
 Same flow as Cumulus/Nimbus:
