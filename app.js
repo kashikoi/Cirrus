@@ -350,9 +350,7 @@ const DISCOVER_MODE_KINDS = {
   streaming: ["streaming"],
   upcoming: ["upcoming"],
 };
-const discoverModal = document.getElementById("discover-modal");
 let discoverMode = DISCOVER_MODE_KINDS[localStorage.getItem(DISCOVER_MODE_KEY)] ? localStorage.getItem(DISCOVER_MODE_KEY) : "theaters";
-let activeDiscoverId = null;
 
 function emptyDiscoverPools() {
   return { theaters: new Map(), theatersDigital: new Map(), streaming: new Map(), upcoming: new Map() };
@@ -457,6 +455,8 @@ async function loadDiscover() {
   discoverState.error = "";
   discoverState.done = 0;
   discoverState.total = 0;
+  previewCache.clear();
+  hydratedPreviewIds.clear();
   renderLists();
   try {
     const genreData = await tmdbGet("genre/movie/list");
@@ -669,48 +669,76 @@ function handleDiscoverClick(e) {
     return;
   }
   const card = e.target.closest("[data-discover-id]");
-  if (card) openDiscoverModal(Number(card.dataset.discoverId));
+  if (card) openDiscoverPreview(Number(card.dataset.discoverId));
 }
 
-function openDiscoverModal(tmdbId) {
-  const r = discoverState.byId.get(tmdbId);
-  if (!r) return;
-  activeDiscoverId = tmdbId;
+// Discover titles open in the regular detail modal. Titles not on the list become an unsaved
+// "preview" movie (cached per TMDB id for the session) that is hydrated like a real add;
+// Save promotes it into `movies`.
+let previewMovie = null;
+const previewCache = new Map();
+const hydratingPreviewIds = new Set();
+const hydratedPreviewIds = new Set();
+
+function getDetailMovie(id) {
+  return movies.find((m) => m.id === id) || (previewMovie && previewMovie.id === id ? previewMovie : null);
+}
+
+function createPreviewMovie(r) {
   const genreNames = (r.genre_ids || [])
     .map((id) => (discoverState.genres.find((g) => g.id === id) || {}).name)
     .filter(Boolean);
-  const isUpcoming = (r.release_date || "") > isoDate(new Date());
-  const tab = ["theaters", "streaming", "upcoming"].find((mode) => discoverTabItems(mode).some((item) => item.id === r.id));
-  const availability = { theaters: "In theaters only", streaming: "Available to stream, rent, or buy" }[tab] || "";
-  document.getElementById("discover-title").textContent = r.title;
-  document.getElementById("discover-meta").textContent = [
-    r.release_date ? `${isUpcoming ? "Releases" : "Released"} ${formatReleaseDate(r.release_date)}` : "",
-    availability,
-    genreNames.join(", "),
-  ].filter(Boolean).join(" · ");
-  document.getElementById("discover-overview").textContent = r.overview || "No description yet.";
-  const poster = document.getElementById("discover-poster");
-  poster.src = r.poster_path ? TMDB_IMG + r.poster_path : "";
-  poster.style.display = r.poster_path ? "block" : "none";
-  const score = r.vote_count ? `TMDB: ${r.vote_average.toFixed(1)} (${r.vote_count} votes)` : "TMDB: not yet rated";
-  document.getElementById("discover-ratings").innerHTML =
-    `<a class="rating-chip rating-chip--link" href="https://www.themoviedb.org/movie/${r.id}" target="_blank" rel="noopener noreferrer" title="Open on TMDB">${escapeHtml(score)} ↗</a>`;
-  const onList = findListMovieByTmdbId(tmdbId);
-  document.getElementById("discover-add-btn").textContent = onList ? "Open in My List" : "Add to Watchlist";
-  discoverModal.classList.add("open");
+  return {
+    id: uuid(),
+    tmdbId: r.id,
+    mediaType: "movie",
+    seriesType: null,
+    title: r.title || "",
+    year: (r.release_date || "").slice(0, 4),
+    releaseDate: r.release_date || null,
+    poster: r.poster_path ? TMDB_IMG + r.poster_path : null,
+    overview: r.overview || "",
+    status: "watchlist",
+    personalRating: 0,
+    watchedDate: null,
+    notes: "",
+    imdbId: null,
+    genres: genreNames,
+    sourcedRatings: r.vote_count && r.vote_average ? [{ source: "TMDB", value: r.vote_average.toFixed(1) }] : [],
+    reviews: [],
+    watchProviders: null,
+    addedAt: null,
+  };
 }
 
-document.getElementById("discover-close-btn").addEventListener("click", () => discoverModal.classList.remove("open"));
-document.getElementById("discover-add-btn").addEventListener("click", () => {
-  if (activeDiscoverId == null) return;
-  discoverModal.classList.remove("open");
-  const existing = findListMovieByTmdbId(activeDiscoverId);
+async function openDiscoverPreview(tmdbId) {
+  const existing = findListMovieByTmdbId(tmdbId);
   if (existing) {
     openDetailModal(existing.id);
     return;
   }
-  addFromTmdbId(activeDiscoverId, "movie");
-});
+  let movie = previewCache.get(tmdbId);
+  if (!movie) {
+    const r = discoverState.byId.get(tmdbId);
+    if (!r) return;
+    movie = createPreviewMovie(r);
+    previewCache.set(tmdbId, movie);
+  }
+  previewMovie = movie;
+  const needsHydration = !hydratedPreviewIds.has(movie.id) && !hydratingPreviewIds.has(movie.id);
+  if (needsHydration) hydratingPreviewIds.add(movie.id);
+  openDetailModal(movie.id);
+  if (!needsHydration) return;
+  await hydrateFromTmdb(movie);
+  hydratingPreviewIds.delete(movie.id);
+  hydratedPreviewIds.add(movie.id);
+  if (activeDetailId === movie.id && detailModal.classList.contains("open")) renderDetailInfo(movie);
+  // Saved while still loading: persist the late-arriving details and refresh the list.
+  if (movies.includes(movie)) {
+    saveMovies();
+    renderLists();
+  }
+}
 
 // ---- Priority drag-and-drop reordering ----
 let draggedEl = null;
@@ -1109,20 +1137,34 @@ const personalRatingInput = document.getElementById("personal-rating-input");
 let draftRating = 0;
 
 function openDetailModal(id) {
-  const movie = movies.find((m) => m.id === id);
+  const movie = getDetailMovie(id);
   if (!movie) return;
   activeDetailId = id;
   draftRating = movie.personalRating || 0;
 
-  document.getElementById("detail-title").textContent = movie.title;
-  document.getElementById("detail-meta").textContent = [movie.year, mediaTypeLabel(movie)].filter(Boolean).join(" · ");
-  document.getElementById("detail-overview").textContent = movie.overview || "";
-  document.getElementById("detail-poster").src = movie.poster || "";
-  document.getElementById("detail-poster").style.display = movie.poster ? "block" : "none";
   document.getElementById("detail-status").value = movie.status;
   document.getElementById("detail-watched-date").value = movie.watchedDate || "";
   document.getElementById("detail-notes").value = movie.notes || "";
   document.getElementById("watched-date-field").style.display = movie.status === "watched" ? "block" : "none";
+  const isPreview = !movies.includes(movie);
+  document.getElementById("detail-remove-btn").style.visibility = isPreview ? "hidden" : "";
+  document.getElementById("detail-save-btn").textContent = isPreview ? "Add to My List" : "Save";
+
+  renderDetailInfo(movie);
+  renderStarInput();
+  detailModal.classList.add("open");
+}
+
+// Read-only parts of the detail modal; re-run when a preview finishes hydrating
+// without clobbering the user's in-progress rating/status/notes.
+function renderDetailInfo(movie) {
+  const today = isoDate(new Date());
+  const when = movie.releaseDate && movie.releaseDate > today ? `Releases ${formatReleaseDate(movie.releaseDate)}` : movie.year;
+  document.getElementById("detail-title").textContent = movie.title;
+  document.getElementById("detail-meta").textContent = [when, mediaTypeLabel(movie)].filter(Boolean).join(" · ");
+  document.getElementById("detail-overview").textContent = movie.overview || "";
+  document.getElementById("detail-poster").src = movie.poster || "";
+  document.getElementById("detail-poster").style.display = movie.poster ? "block" : "none";
 
   document.getElementById("detail-sourced-ratings").innerHTML = (movie.sourcedRatings || [])
     .map((r) => {
@@ -1139,14 +1181,12 @@ function openDetailModal(id) {
   document.getElementById("detail-reviews").innerHTML = (movie.reviews || [])
     .map((r) => `<div class="review"><div class="review__author">${escapeHtml(r.author)}</div><div class="review__content">${escapeHtml(r.content)}</div></div>`)
     .join("");
-
-  renderStarInput();
-  detailModal.classList.add("open");
 }
 
 function watchProvidersDetailHtml(movie) {
   const wp = movie.watchProviders;
   if (!wp) {
+    if (hydratingPreviewIds.has(movie.id)) return `<p class="watch-providers__empty">Checking where to watch…</p>`;
     return `<p class="watch-providers__empty">Availability not checked yet${settings.tmdbKey ? " — reopen after a refresh." : " (add a TMDB API key in Settings)."}</p>`;
   }
   const groups = [
@@ -1194,12 +1234,19 @@ document.getElementById("detail-status").addEventListener("change", (e) => {
 document.getElementById("detail-cancel-btn").addEventListener("click", () => detailModal.classList.remove("open"));
 
 document.getElementById("detail-save-btn").addEventListener("click", () => {
-  const movie = movies.find((m) => m.id === activeDetailId);
+  const movie = getDetailMovie(activeDetailId);
   if (!movie) return;
   movie.status = document.getElementById("detail-status").value;
   movie.watchedDate = movie.status === "watched" ? document.getElementById("detail-watched-date").value || new Date().toISOString().slice(0, 10) : null;
   movie.notes = document.getElementById("detail-notes").value;
   movie.personalRating = draftRating;
+  if (!movies.includes(movie)) {
+    // Promote a Discover preview into the user's list.
+    movie.addedAt = Date.now();
+    movies.push(movie);
+    previewCache.delete(movie.tmdbId);
+    previewMovie = null;
+  }
   saveMovies();
   renderLists();
   detailModal.classList.remove("open");
@@ -1710,7 +1757,7 @@ document.getElementById("about-link").addEventListener("click", () => {
 document.getElementById("about-close-btn").addEventListener("click", () => aboutModal.classList.remove("open"));
 
 // Close modals on backdrop click
-[detailModal, manualModal, settingsModal, aboutModal, discoverModal].forEach((modal) => {
+[detailModal, manualModal, settingsModal, aboutModal].forEach((modal) => {
   modal.addEventListener("click", (e) => {
     if (e.target === modal) modal.classList.remove("open");
   });

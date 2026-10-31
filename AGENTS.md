@@ -43,9 +43,15 @@ been built, why, and non-obvious details worth knowing before changing anything.
     together. Upcoming rows sort soonest-first, others by popularity.
   - Discover data lives only in memory (`discoverState`), loaded on boot if Discover is the
     current view, on tab switch when older than `DISCOVER_STALE_MS`, and after a Settings
-    key/region change. Cards open `#discover-modal` (preview + "Add to Watchlist" via
-    `addFromTmdbId`, or "Open in My List" if present). The feed click handler routes to
-    `handleDiscoverClick()` while Discover is active.
+    key/region change. Discover cards open the regular `#detail-modal`: titles already on the
+    list open that record; others open an unsaved preview movie (`openDiscoverPreview()` →
+    `createPreviewMovie()`, cached per TMDB id in `previewCache`, cleared on Discover reload)
+    hydrated in the background via `hydrateFromTmdb()` (details, reviews, OMDb, watch
+    providers). `getDetailMovie()` resolves either; `renderDetailInfo()` refreshes only the
+    read-only parts so in-progress rating/status/notes survive hydration. For previews the
+    Save button reads "Add to My List" and pushes the preview into `movies`; Remove is
+    hidden. Preview movies carry `releaseDate`, shown as "Releases <date>" when in the
+    future. The feed click handler routes to `handleDiscoverClick()` while Discover is active.
 - Search (`#search-mode`) can query by **Title** (`/search/movie`), **Actor**, or
   **Director**. Actor/Director use `/search/person` → best-matching person (prefers
   `known_for_department`) → `/person/{id}/movie_credits`, listing `cast` (actor) or
