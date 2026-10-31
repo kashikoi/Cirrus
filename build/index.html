@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.10.31.4" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.31.5" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -342,6 +342,11 @@
       <button type="button" class="view-switch__btn" data-view="discover" role="tab">Discover</button>
     </div>
 
+    <div class="discover-controls" id="discover-controls" hidden>
+      <div id="discover-toolbar"></div>
+      <div id="discover-filters"></div>
+    </div>
+
     <div class="movie-feed" id="movie-feed"></div>
     <p class="empty-state" id="movies-empty">Nothing on your watchlist yet. Search above or add a movie manually.</p>
   </div>
@@ -474,6 +479,11 @@
         </select>
       </label>
 
+      <label class="field">
+        <span>Discover look-back <small>(years of releases searched for In theaters &amp; Streaming)</small></span>
+        <input type="number" id="discover-years-input" min="1" max="50" step="1" inputmode="numeric" />
+      </label>
+
       <div class="settings-row">
         <span>Backup</span>
         <div class="settings-row__actions">
@@ -529,12 +539,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.10.31.4</p>
+      <p class="about-modal__version">Version 2026.10.31.5</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.10.31.4"></script>
+  <script src="app.js?v=2026.10.31.5"></script>
 </body>
 </html>

@@ -549,6 +549,49 @@ html.dark .search-bar__mode {
   opacity: 0.7;
 }
 
+.discover-controls[hidden] {
+  display: none;
+}
+
+.discover-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin: -6px 0 16px;
+}
+
+.discover-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.discover-filter__select {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+html.dark .discover-filter__select {
+  background: var(--card-strong);
+}
+
+.discover-filters__note {
+  margin: -8px 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .line-list {
   display: flex;
   flex-direction: column;

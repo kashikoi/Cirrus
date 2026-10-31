@@ -28,9 +28,11 @@ been built, why, and non-obvious details worth knowing before changing anything.
     mark titles already on the user's list.
   - Discover browses TMDB (not the user's list) in three mutually exclusive sub-tabs
     (`discoverMode`, persisted in `cirrus.discoverMode`): **In theaters** (`with_release_type=2|3`
-    in the Settings region within `DISCOVER_THEATER_WINDOW_DAYS`, minus anything on digital),
-    **Streaming** (primary release in the past year with any digital availability in the region —
-    `flatrate|free|ads|rent|buy`), and **Coming soon** (primary release after today). Each query
+    in the Settings region within the look-back window, minus anything on digital),
+    **Streaming** (primary release within the look-back window with any digital availability in
+    the region — `flatrate|free|ads|rent|buy`), and **Coming soon** (primary release after today).
+    The look-back window is `settings.discoverYears` (Settings → "Discover look-back", default 1,
+    clamped 1–`DISCOVER_MAX_LOOKBACK_YEARS` by `discoverLookbackYears()`). Each query
     kind is fetched per genre via `/discover/movie` (`sort_by=popularity.desc`,
     `DISCOVER_PAGES_PER_GENRE` pages, `DISCOVER_CONCURRENCY` parallel, one 429 retry in
     `tmdbGet()`). "In theaters" = `theaters` pool minus `theatersDigital` pool (same query +
@@ -41,9 +43,24 @@ been built, why, and non-obvious details worth knowing before changing anything.
     fetched titles were all claimed elsewhere still renders (empty) if TMDB has more pages.
     Rows are horizontal (`.discover-row`); "More →" advances every query kind for that tab
     together. Upcoming rows sort soonest-first, others by popularity.
+  - Filters (In theaters + Streaming only; `discoverFilters`, persisted in
+    `cirrus.discoverFilters`): min TMDB / IMDb / Rotten Tomatoes / Metacritic score and
+    from/to release year, applied client-side *after* tab assignment by
+    `passesDiscoverFilters()` / `discoverVisibleItems()` (so filtering never moves a movie
+    into another tab). While a score filter is set, titles lacking that score are hidden; TMDB
+    counts as unscored below `DISCOVER_MIN_TMDB_VOTES`. IMDb/RT/Metacritic need
+    `/movie/{id}/external_ids` + one OMDb call per title, so `ensureDiscoverScores()` runs only
+    while one of those filters is set and an OMDb key exists (no key → filter ignored + note).
+    Scores are cached in `cirrus.discoverScores` (`{tmdbId: {imdbId, imdb, rt, mc, at}}`) for
+    `DISCOVER_SCORE_TTL_MS` (7 days) to protect the free OMDb 1,000/day quota; an OMDb
+    limit/bad-key error stops the batch and shows in the status line. Cached RT scores also
+    show as 🍅 badges on Discover cards.
+  - The Discover toolbar and filter bar render into `#discover-controls` (outside
+    `#movie-feed`) through `setHtmlIfChanged()`, so throttled re-renders while scores stream
+    in don't replace an open `<select>`.
   - Discover data lives only in memory (`discoverState`), loaded on boot if Discover is the
     current view, on tab switch when older than `DISCOVER_STALE_MS`, and after a Settings
-    key/region change. Discover cards open the regular `#detail-modal`: titles already on the
+    key/region/look-back change. Discover cards open the regular `#detail-modal`: titles already on the
     list open that record; others open an unsaved preview movie (`openDiscoverPreview()` →
     `createPreviewMovie()`, cached per TMDB id in `previewCache`, cleared on Discover reload)
     hydrated in the background via `hydrateFromTmdb()` (details, reviews, OMDb, watch
@@ -109,7 +126,7 @@ been built, why, and non-obvious details worth knowing before changing anything.
     `/movie/{id}/watch/providers` endpoint (JustWatch data) for the configured region. Stale
     (wrong-region or never-fetched) entries are backfilled in the background on boot, after
     import, and after a Settings region change — see `backfillWatchProviders()`.
-- `cirrus.settings` — `{tmdbKey, omdbKey, region}`. `tmdbKey`/`omdbKey` optional; without a
+- `cirrus.settings` — `{tmdbKey, omdbKey, region, discoverYears}`. `tmdbKey`/`omdbKey` optional; without a
   TMDB key, search, reviews, watch-provider availability, and auto-filled
   posters/overviews are unavailable, but manual add, personal ratings, notes, and watched
   tracking still work fully offline. `region` is a 2-letter country code (default `"US"`)

@@ -64,10 +64,11 @@ function saveMovies() {
   markCloudDataDirty();
 }
 function loadSettings() {
+  const defaults = { tmdbKey: "", omdbKey: "", region: "US", discoverYears: 1 };
   try {
-    return Object.assign({ tmdbKey: "", omdbKey: "", region: "US" }, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
+    return Object.assign(defaults, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
   } catch (e) {
-    return { tmdbKey: "", omdbKey: "", region: "US" };
+    return defaults;
   }
 }
 function saveSettings() {
@@ -274,10 +275,14 @@ function renderLists() {
     b.classList.toggle("view-switch__btn--active", b.dataset.view === currentView);
   });
 
+  const discoverControls = document.getElementById("discover-controls");
+  discoverControls.hidden = currentView !== "discover";
   if (currentView === "discover") {
     empty.style.display = "none";
+    setHtmlIfChanged(document.getElementById("discover-toolbar"), renderDiscoverToolbar());
+    setHtmlIfChanged(document.getElementById("discover-filters"), renderDiscoverFilters());
     const scrollByRow = new Map([...feed.querySelectorAll("[data-genre-row]")].map((row) => [row.dataset.genreRow, row.scrollLeft]));
-    feed.innerHTML = renderDiscoverView();
+    feed.innerHTML = renderDiscoverSections();
     feed.querySelectorAll("[data-genre-row]").forEach((row) => {
       if (scrollByRow.has(row.dataset.genreRow)) row.scrollLeft = scrollByRow.get(row.dataset.genreRow);
     });
@@ -322,6 +327,15 @@ document.querySelector(".view-switch").addEventListener("click", (e) => {
 
 const feedEl = document.getElementById("movie-feed");
 feedEl.addEventListener("click", (e) => (currentView === "discover" ? handleDiscoverClick(e) : openDetailFromCard(e)));
+document.getElementById("discover-controls").addEventListener("click", handleDiscoverClick);
+document.getElementById("discover-controls").addEventListener("change", (e) => {
+  const select = e.target.closest("[data-discover-filter]");
+  if (!select) return;
+  discoverFilters[select.dataset.discoverFilter] = Number(select.value) || 0;
+  localStorage.setItem(DISCOVER_FILTERS_KEY, JSON.stringify(discoverFilters));
+  renderLists();
+  ensureDiscoverScores();
+});
 
 function openDetailFromCard(e) {
   if (feedEl.classList.contains("is-dragging")) return;
@@ -332,15 +346,16 @@ function openDetailFromCard(e) {
 
 // ---- Discover tab ----
 // Browses TMDB's /discover/movie per genre in three mutually exclusive tabs:
-//   theaters  = theatrical release in the region within DISCOVER_THEATER_WINDOW_DAYS and not yet on digital
-//   streaming = released in the past year and on any digital service in the region (subscription, free, rent, buy)
+//   theaters  = theatrical release in the region within the look-back window and not yet on digital
+//   streaming = released within the look-back window and on any digital service in the region (subscription, free, rent, buy)
 //   upcoming  = primary release date after today
+// The look-back window is `settings.discoverYears` (Settings → Discover look-back, default 1 year).
 // Each movie appears in exactly one tab (streaming > theaters > upcoming) and one genre (its primary genre).
 // Data is session-only (never saved) and refetched on page load or when stale.
 const DISCOVER_PAGES_PER_GENRE = 2;
 const DISCOVER_STALE_MS = 10 * 60 * 1000;
 const DISCOVER_CONCURRENCY = 8;
-const DISCOVER_THEATER_WINDOW_DAYS = 183;
+const DISCOVER_MAX_LOOKBACK_YEARS = 50;
 const DISCOVER_MODE_KEY = "cirrus.discoverMode";
 const DIGITAL_MONETIZATION_TYPES = "flatrate|free|ads|rent|buy";
 // Query kinds fetched for each tab. "theatersDigital" is the theatrical query restricted to titles
@@ -380,13 +395,24 @@ function isoDaysFromToday(days) {
   return isoDate(date);
 }
 
+function discoverLookbackYears() {
+  const years = Math.round(Number(settings.discoverYears));
+  return Number.isFinite(years) ? Math.min(Math.max(years, 1), DISCOVER_MAX_LOOKBACK_YEARS) : 1;
+}
+
+function isoLookbackStart() {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - discoverLookbackYears());
+  return isoDate(date);
+}
+
 function discoverParams(kind) {
   const region = settings.region || "US";
   const today = isoDaysFromToday(0);
   if (kind === "upcoming") return { "primary_release_date.gte": isoDaysFromToday(1) };
   if (kind === "streaming") {
     return {
-      "primary_release_date.gte": isoDaysFromToday(-365),
+      "primary_release_date.gte": isoLookbackStart(),
       "primary_release_date.lte": today,
       watch_region: region,
       with_watch_monetization_types: DIGITAL_MONETIZATION_TYPES,
@@ -395,7 +421,7 @@ function discoverParams(kind) {
   const theatrical = {
     region,
     with_release_type: "2|3",
-    "release_date.gte": isoDaysFromToday(-DISCOVER_THEATER_WINDOW_DAYS),
+    "release_date.gte": isoLookbackStart(),
     "release_date.lte": today,
   };
   return kind === "theatersDigital"
@@ -457,6 +483,8 @@ async function loadDiscover() {
   discoverState.total = 0;
   previewCache.clear();
   hydratedPreviewIds.clear();
+  scoreFetch.attempted.clear();
+  scoreFetch.stopReason = "";
   renderLists();
   try {
     const genreData = await tmdbGet("genre/movie/list");
@@ -502,6 +530,7 @@ async function loadDiscover() {
     if (token === discoverState.token) {
       discoverState.loading = false;
       renderLists();
+      ensureDiscoverScores();
     }
   }
 }
@@ -536,6 +565,7 @@ async function loadMoreDiscoverGenre(genreId) {
   } finally {
     discoverState.loadingMore.delete(loadingKey);
     renderLists();
+    ensureDiscoverScores();
   }
 }
 
@@ -551,10 +581,163 @@ function discoverTabItems(mode) {
   return [...pools.upcoming.values()].filter((r) => usable(r) && !streaming.has(r.id) && !theaterIds.has(r.id));
 }
 
+// ---- Discover filters (In theaters + Streaming only) ----
+// TMDB scores come with the discover results. IMDb / Rotten Tomatoes / Metacritic need an OMDb
+// lookup per title, so they're only fetched while one of those filters is set, and cached in
+// localStorage for DISCOVER_SCORE_TTL_MS to protect the free OMDb quota (1,000/day).
+// While a score filter is set, titles without that score are hidden.
+const DISCOVER_FILTERS_KEY = "cirrus.discoverFilters";
+const DISCOVER_SCORES_KEY = "cirrus.discoverScores";
+const DISCOVER_SCORE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const DISCOVER_MIN_TMDB_VOTES = 20;
+const DISCOVER_FILTERED_MODES = ["theaters", "streaming"];
+const DISCOVER_SCORE_FILTERS = [
+  { key: "tmdb", label: "TMDB", options: [5, 6, 6.5, 7, 7.5, 8], format: (v) => `${v}+` },
+  { key: "imdb", label: "IMDb", options: [5, 6, 6.5, 7, 7.5, 8], format: (v) => `${v}+` },
+  { key: "rt", label: "Rotten Tomatoes", options: [50, 60, 70, 80, 90], format: (v) => `${v}%+` },
+  { key: "mc", label: "Metacritic", options: [50, 60, 70, 80], format: (v) => `${v}+` },
+];
+const OMDB_FILTER_KEYS = ["imdb", "rt", "mc"];
+const EMPTY_DISCOVER_FILTERS = { tmdb: 0, imdb: 0, rt: 0, mc: 0, yearFrom: 0, yearTo: 0 };
+
+function loadDiscoverFilters() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(DISCOVER_FILTERS_KEY)) || {};
+    return Object.fromEntries(Object.keys(EMPTY_DISCOVER_FILTERS).map((k) => [k, Number(stored[k]) || 0]));
+  } catch (e) {
+    return { ...EMPTY_DISCOVER_FILTERS };
+  }
+}
+
+function loadDiscoverScores() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(DISCOVER_SCORES_KEY)) || {};
+    const cutoff = Date.now() - DISCOVER_SCORE_TTL_MS;
+    return Object.fromEntries(Object.entries(stored).filter(([, s]) => s && s.at > cutoff));
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveDiscoverScores() {
+  try {
+    localStorage.setItem(DISCOVER_SCORES_KEY, JSON.stringify(discoverScores));
+  } catch (e) {
+    // storage full — scores just won't persist past this session
+  }
+}
+
+let discoverFilters = loadDiscoverFilters();
+let discoverScores = loadDiscoverScores(); // tmdbId -> { imdbId, imdb, rt, mc, at }
+const scoreFetch = { running: false, done: 0, total: 0, stopReason: "", attempted: new Set() };
+
+function discoverFiltersActive() {
+  return Object.keys(EMPTY_DISCOVER_FILTERS).some((k) => discoverFilters[k]);
+}
+
+function omdbFiltersSet() {
+  return OMDB_FILTER_KEYS.some((k) => discoverFilters[k]);
+}
+
+// OMDb filters only apply with a key; otherwise every title would be hidden as "unscored".
+function omdbFiltersActive() {
+  return !!settings.omdbKey && omdbFiltersSet();
+}
+
+function passesDiscoverFilters(r) {
+  const f = discoverFilters;
+  const year = Number((r.release_date || "").slice(0, 4));
+  if (f.yearFrom && !(year >= f.yearFrom)) return false;
+  if (f.yearTo && !(year <= f.yearTo)) return false;
+  if (f.tmdb && !(r.vote_count >= DISCOVER_MIN_TMDB_VOTES && r.vote_average >= f.tmdb)) return false;
+  if (omdbFiltersActive()) {
+    const s = discoverScores[r.id];
+    for (const key of OMDB_FILTER_KEYS) {
+      if (f[key] && !(s && s[key] != null && s[key] >= f[key])) return false;
+    }
+  }
+  return true;
+}
+
+function discoverVisibleItems(mode) {
+  const items = discoverTabItems(mode);
+  return DISCOVER_FILTERED_MODES.includes(mode) ? items.filter(passesDiscoverFilters) : items;
+}
+
+async function fetchDiscoverScore(tmdbId) {
+  const ext = await tmdbGet(`movie/${tmdbId}/external_ids`);
+  const score = { imdbId: ext.imdb_id || null, imdb: null, rt: null, mc: null, at: Date.now() };
+  if (!score.imdbId) return score;
+  const res = await fetch(`https://www.omdbapi.com/?apikey=${encodeURIComponent(settings.omdbKey)}&i=${encodeURIComponent(score.imdbId)}`);
+  const data = await res.json();
+  if (data.Response !== "True") {
+    const message = data.Error || "";
+    if (/limit/i.test(message)) throw new Error("OMDb daily request limit reached — some scores are missing until tomorrow.");
+    if (/api key/i.test(message)) throw new Error("OMDb key was rejected — check it in Settings.");
+    return score;
+  }
+  const num = (v) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const rt = (data.Ratings || []).find((x) => x.Source === "Rotten Tomatoes");
+  return { ...score, imdb: num(data.imdbRating), rt: rt ? num(rt.Value) : null, mc: num(data.Metascore) };
+}
+
+// Looks up IMDb/RT/Metacritic for every In theaters + Streaming title not already cached
+// (current tab first). Re-renders in throttled batches as scores arrive.
+async function ensureDiscoverScores() {
+  if (scoreFetch.running || scoreFetch.stopReason || !omdbFiltersActive() || !discoverState.loadedAt) return;
+  const order = discoverMode === "streaming" ? ["streaming", "theaters"] : ["theaters", "streaming"];
+  const targets = [];
+  for (const mode of order) {
+    for (const r of discoverTabItems(mode)) {
+      if (discoverScores[r.id] || scoreFetch.attempted.has(r.id)) continue;
+      scoreFetch.attempted.add(r.id);
+      targets.push(r);
+    }
+  }
+  if (!targets.length) return;
+  scoreFetch.running = true;
+  scoreFetch.done = 0;
+  scoreFetch.total = targets.length;
+  renderLists();
+  let renderTimer = null;
+  const scheduleRender = () => {
+    if (renderTimer) return;
+    renderTimer = setTimeout(() => {
+      renderTimer = null;
+      saveDiscoverScores();
+      if (currentView === "discover") renderLists();
+    }, 800);
+  };
+  await runWithConcurrency(
+    targets.map((r) => async () => {
+      if (scoreFetch.stopReason) return;
+      try {
+        discoverScores[r.id] = await fetchDiscoverScore(r.id);
+        scheduleRender();
+      } catch (err) {
+        if (/OMDb/.test(err.message)) scoreFetch.stopReason = err.message;
+      } finally {
+        scoreFetch.done++;
+        updateDiscoverProgress();
+      }
+    }),
+    4
+  );
+  clearTimeout(renderTimer);
+  saveDiscoverScores();
+  scoreFetch.running = false;
+  renderLists();
+  // Titles added while this batch ran (e.g. "More →") get picked up by another pass.
+  ensureDiscoverScores();
+}
+
 function discoverBuckets(mode) {
   const genreIds = new Set(discoverState.genres.map((g) => g.id));
   const buckets = new Map();
-  for (const r of discoverTabItems(mode)) {
+  for (const r of discoverVisibleItems(mode)) {
     const primary = r.genre_ids.find((id) => genreIds.has(id));
     if (primary == null) continue;
     if (!buckets.has(primary)) buckets.set(primary, []);
@@ -578,11 +761,16 @@ function formatReleaseDate(date) {
 
 function discoverCardHtml(r) {
   const onList = findListMovieByTmdbId(r.id);
-  const score = r.vote_count >= 20 && r.vote_average ? `<span class="movie-card__type-badge">TMDB ${r.vote_average.toFixed(1)}</span>` : "";
+  const score = r.vote_count >= DISCOVER_MIN_TMDB_VOTES && r.vote_average ? `<span class="movie-card__type-badge">TMDB ${r.vote_average.toFixed(1)}</span>` : "";
+  const cached = discoverScores[r.id];
+  const rtBadge = cached && cached.rt != null
+    ? `<span class="movie-card__rt-badge ${cached.rt >= 60 ? "movie-card__rt-badge--fresh" : "movie-card__rt-badge--rotten"}">🍅 ${cached.rt}%</span>`
+    : "";
   return `
     <article class="movie-card${onList ? " movie-card--watched" : ""}" data-discover-id="${r.id}">
       <div class="movie-card__poster-wrap">
         <img class="movie-card__poster" src="${escapeHtml(TMDB_IMG + r.poster_path)}" alt="" loading="lazy" />
+        ${rtBadge}
         ${onList ? `<span class="movie-card__watched-badge" title="On your list">✓</span>` : ""}
         ${score}
       </div>
@@ -595,22 +783,32 @@ function discoverCardHtml(r) {
 
 function updateDiscoverProgress() {
   const status = document.getElementById("discover-status");
-  if (status && discoverState.loading) status.textContent = discoverStatusText();
+  if (status && (discoverState.loading || scoreFetch.running)) status.textContent = discoverStatusText();
 }
 
 function discoverStatusText() {
   if (discoverState.loading) return discoverState.total ? `Loading from TMDB… ${discoverState.done}/${discoverState.total}` : "Loading from TMDB…";
-  if (discoverState.loadedAt) return `Updated ${new Date(discoverState.loadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-  return "";
+  const parts = [];
+  if (discoverState.loadedAt) parts.push(`Updated ${new Date(discoverState.loadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+  if (scoreFetch.running) parts.push(`Fetching IMDb/RT/Metacritic scores… ${scoreFetch.done}/${scoreFetch.total}`);
+  else if (scoreFetch.stopReason && omdbFiltersSet()) parts.push(scoreFetch.stopReason);
+  return parts.join(" · ");
 }
 
-function renderDiscoverView() {
+// Only touch the DOM when markup changes, so an open <select> isn't replaced mid-interaction.
+function setHtmlIfChanged(el, html) {
+  if (el._renderedHtml === html) return;
+  el.innerHTML = html;
+  el._renderedHtml = html;
+}
+
+function renderDiscoverToolbar() {
   const hasData = discoverState.loadedAt > 0;
   const modeBtn = (mode, label) => {
-    const count = hasData ? ` <span class="discover-genre__count">${discoverTabItems(mode).length}</span>` : "";
+    const count = hasData ? ` <span class="discover-genre__count">${discoverVisibleItems(mode).length}</span>` : "";
     return `<button type="button" class="view-switch__btn${discoverMode === mode ? " view-switch__btn--active" : ""}" data-discover-mode="${mode}">${label}${count}</button>`;
   };
-  const toolbar = `
+  return `
     <div class="discover-toolbar">
       <div class="view-switch discover-toolbar__modes" role="group" aria-label="Discover category">
         ${modeBtn("theaters", "In theaters")}
@@ -620,20 +818,53 @@ function renderDiscoverView() {
       <span class="discover-status" id="discover-status">${escapeHtml(discoverStatusText())}</span>
       <button type="button" class="btn btn--ghost btn--small" data-discover-refresh ${discoverState.loading ? "disabled" : ""}>Refresh</button>
     </div>`;
+}
 
+function renderDiscoverFilters() {
+  if (!settings.tmdbKey || !DISCOVER_FILTERED_MODES.includes(discoverMode)) return "";
+  const select = (key, label, options, format) => `
+    <label class="discover-filter">
+      <span>${escapeHtml(label)}</span>
+      <select class="discover-filter__select" data-discover-filter="${key}">
+        <option value="0">Any</option>
+        ${options.map((v) => `<option value="${v}"${discoverFilters[key] === v ? " selected" : ""}>${escapeHtml(format(v))}</option>`).join("")}
+      </select>
+    </label>`;
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for (let y = thisYear; y >= thisYear - discoverLookbackYears(); y--) years.push(y);
+  ["yearFrom", "yearTo"].forEach((k) => {
+    if (discoverFilters[k] && !years.includes(discoverFilters[k])) years.push(discoverFilters[k]);
+  });
+  years.sort((a, b) => b - a);
+  const omdbNote = omdbFiltersSet() && !settings.omdbKey
+    ? `<p class="discover-filters__note">Add an OMDb key in Settings to filter by IMDb, Rotten Tomatoes, or Metacritic.</p>`
+    : "";
+  return `
+    <div class="discover-filters">
+      ${DISCOVER_SCORE_FILTERS.map((f) => select(f.key, f.label, f.options, f.format)).join("")}
+      ${select("yearFrom", "From year", years, String)}
+      ${select("yearTo", "To year", years, String)}
+      ${discoverFiltersActive() ? `<button type="button" class="btn btn--ghost btn--small" data-discover-reset-filters>Clear filters</button>` : ""}
+    </div>
+    ${omdbNote}`;
+}
+
+function renderDiscoverSections() {
   if (!settings.tmdbKey) {
-    return `${toolbar}<p class="empty-state">Add a TMDB API key in Settings to discover new and upcoming movies.</p>`;
+    return `<p class="empty-state">Add a TMDB API key in Settings to discover new and upcoming movies.</p>`;
   }
   if (discoverState.error) {
-    return `${toolbar}<p class="empty-state">Discover failed: ${escapeHtml(discoverState.error)}</p>`;
+    return `<p class="empty-state">Discover failed: ${escapeHtml(discoverState.error)}</p>`;
   }
+  const filtering = DISCOVER_FILTERED_MODES.includes(discoverMode) && discoverFiltersActive();
   const buckets = discoverBuckets(discoverMode);
   const genreHtml = discoverState.genres
     .map((genre) => {
       const items = buckets.get(genre.id) || [];
       const hasMore = discoverQueryHasMore(discoverMode, genre.id);
-      // Keep a genre visible when everything fetched so far was claimed by another tab/genre but TMDB has more.
-      if (!items.length && !hasMore) return "";
+      // Keep an empty genre visible (unfiltered only) when TMDB has more pages for it.
+      if (!items.length && (!hasMore || filtering)) return "";
       const loadingMore = discoverState.loadingMore.has(`${discoverMode}:${genre.id}`);
       const more = hasMore
         ? `<button type="button" class="discover-more" data-genre-more="${genre.id}" ${loadingMore ? "disabled" : ""}>${loadingMore ? "Loading…" : "More →"}</button>`
@@ -645,10 +876,10 @@ function renderDiscoverView() {
         </section>`;
     })
     .join("");
-  if (!genreHtml) {
-    return `${toolbar}${discoverState.loading ? "" : `<p class="empty-state">No titles found.</p>`}`;
-  }
-  return toolbar + genreHtml;
+  if (genreHtml) return genreHtml;
+  if (discoverState.loading) return "";
+  if (filtering && scoreFetch.running) return `<p class="empty-state">Fetching scores… matching titles will appear here.</p>`;
+  return `<p class="empty-state">${filtering ? "No titles match these filters." : "No titles found."}</p>`;
 }
 
 function handleDiscoverClick(e) {
@@ -656,6 +887,13 @@ function handleDiscoverClick(e) {
   if (modeBtn) {
     discoverMode = modeBtn.dataset.discoverMode;
     localStorage.setItem(DISCOVER_MODE_KEY, discoverMode);
+    renderLists();
+    ensureDiscoverScores();
+    return;
+  }
+  if (e.target.closest("[data-discover-reset-filters]")) {
+    discoverFilters = { ...EMPTY_DISCOVER_FILTERS };
+    localStorage.setItem(DISCOVER_FILTERS_KEY, JSON.stringify(discoverFilters));
     renderLists();
     return;
   }
@@ -1266,24 +1504,36 @@ document.getElementById("settings-btn").addEventListener("click", () => {
   document.getElementById("tmdb-key-input").value = settings.tmdbKey || "";
   document.getElementById("omdb-key-input").value = settings.omdbKey || "";
   document.getElementById("region-input").value = settings.region || "US";
+  document.getElementById("discover-years-input").value = discoverLookbackYears();
   document.getElementById("tmdb-key-test-status").textContent = "";
   document.getElementById("omdb-key-test-status").textContent = "";
   settingsModal.classList.add("open");
 });
 document.getElementById("settings-close-btn").addEventListener("click", () => {
-  const previousDiscoverInputs = `${settings.tmdbKey}|${settings.region}`;
+  const discoverInputs = () => `${settings.tmdbKey}|${settings.region}|${discoverLookbackYears()}`;
+  const previousDiscoverInputs = discoverInputs();
+  const previousOmdbKey = settings.omdbKey;
   settings.tmdbKey = document.getElementById("tmdb-key-input").value.trim();
   settings.omdbKey = document.getElementById("omdb-key-input").value.trim();
   settings.region = document.getElementById("region-input").value;
+  settings.discoverYears = Number(document.getElementById("discover-years-input").value) || 1;
+  settings.discoverYears = discoverLookbackYears();
   saveSettings();
   settingsModal.classList.remove("open");
   backfillWatchProviders();
   backfillSourcedRatings();
-  // Discover tabs depend on the key and region (theatrical/digital availability is regional).
-  if (`${settings.tmdbKey}|${settings.region}` !== previousDiscoverInputs) discoverState.loadedAt = 0;
+  // Discover tabs depend on the key, region (availability is regional), and look-back window.
+  if (discoverInputs() !== previousDiscoverInputs) discoverState.loadedAt = 0;
+  if (settings.omdbKey !== previousOmdbKey) {
+    scoreFetch.stopReason = "";
+    scoreFetch.attempted.clear();
+  }
   if (currentView === "discover") {
     if (settings.tmdbKey && !discoverState.loadedAt && !discoverState.loading) loadDiscover();
-    else renderLists();
+    else {
+      renderLists();
+      ensureDiscoverScores();
+    }
   }
 });
 
@@ -1354,7 +1604,7 @@ function createCirrusBackupData() {
     appName: "Cirrus",
     exportedAt: new Date().toISOString(),
     theme: localStorage.getItem(THEME_KEY) || "day",
-    settings: { tmdbKey: settings.tmdbKey || "", omdbKey: settings.omdbKey || "", region: settings.region || "US" },
+    settings: { tmdbKey: settings.tmdbKey || "", omdbKey: settings.omdbKey || "", region: settings.region || "US", discoverYears: discoverLookbackYears() },
     movies,
   };
 }
@@ -1403,6 +1653,9 @@ function normalizeBackupData(data) {
   const importedSettings = rawSettings
     ? Object.fromEntries(["tmdbKey", "omdbKey", "region"].filter((key) => typeof rawSettings[key] === "string" && rawSettings[key].trim()).map((key) => [key, rawSettings[key].trim()]))
     : null;
+  if (importedSettings && Number.isFinite(rawSettings.discoverYears) && rawSettings.discoverYears >= 1) {
+    importedSettings.discoverYears = Math.min(Math.round(rawSettings.discoverYears), DISCOVER_MAX_LOOKBACK_YEARS);
+  }
   return { movies: importedMovies.map(withMediaDefaults), theme: cirrusData.theme, settings: importedSettings };
 }
 
