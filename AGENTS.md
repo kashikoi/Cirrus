@@ -26,16 +26,26 @@ been built, why, and non-obvious details worth knowing before changing anything.
   - NOTE: watched movies are no longer shown in the genre view — the views are now split by
     status. `.movie-card--watched` + `.movie-card__watched-badge` are reused by Discover to
     mark titles already on the user's list.
-  - Discover browses TMDB (not the user's list): `/genre/movie/list`, then
-    `/discover/movie` per genre × mode (`released` = primary release in the past year,
-    `upcoming` = after today), `sort_by=popularity.desc`, `DISCOVER_PAGES_PER_GENRE` pages
-    each, `DISCOVER_CONCURRENCY` parallel requests, one 429 retry in `tmdbGet()`. Rows are
-    horizontal (`.discover-row`) with a per-genre "More →" that fetches the next page.
-    Results without posters are dropped; upcoming rows are displayed soonest-first. Data
-    lives only in memory (`discoverState`), loaded on boot if Discover is the current view
-    and on tab switch when older than `DISCOVER_STALE_MS`. Cards open `#discover-modal`
-    (preview + "Add to Watchlist" via `addFromTmdbId`, or "Open in My List" if present).
-    The feed click handler routes to `handleDiscoverClick()` while Discover is active.
+  - Discover browses TMDB (not the user's list) in three mutually exclusive sub-tabs
+    (`discoverMode`, persisted in `cirrus.discoverMode`): **In theaters** (`with_release_type=2|3`
+    in the Settings region within `DISCOVER_THEATER_WINDOW_DAYS`, minus anything on digital),
+    **Streaming** (primary release in the past year with any digital availability in the region —
+    `flatrate|free|ads|rent|buy`), and **Coming soon** (primary release after today). Each query
+    kind is fetched per genre via `/discover/movie` (`sort_by=popularity.desc`,
+    `DISCOVER_PAGES_PER_GENRE` pages, `DISCOVER_CONCURRENCY` parallel, one 429 retry in
+    `tmdbGet()`). "In theaters" = `theaters` pool minus `theatersDigital` pool (same query +
+    digital filter, always fetched to the same page depth so the subtraction is exact).
+  - De-duplication (`discoverTabItems()` / `discoverBuckets()`): each movie lands in exactly one
+    tab (precedence streaming > theaters > upcoming) and one genre — its primary (first
+    known) `genre_ids` entry. Results without posters or genres are dropped. A genre whose
+    fetched titles were all claimed elsewhere still renders (empty) if TMDB has more pages.
+    Rows are horizontal (`.discover-row`); "More →" advances every query kind for that tab
+    together. Upcoming rows sort soonest-first, others by popularity.
+  - Discover data lives only in memory (`discoverState`), loaded on boot if Discover is the
+    current view, on tab switch when older than `DISCOVER_STALE_MS`, and after a Settings
+    key/region change. Cards open `#discover-modal` (preview + "Add to Watchlist" via
+    `addFromTmdbId`, or "Open in My List" if present). The feed click handler routes to
+    `handleDiscoverClick()` while Discover is active.
 - Search (`#search-mode`) can query by **Title** (`/search/movie`), **Actor**, or
   **Director**. Actor/Director use `/search/person` → best-matching person (prefers
   `known_for_department`) → `/person/{id}/movie_credits`, listing `cast` (actor) or

@@ -331,14 +331,33 @@ function openDetailFromCard(e) {
 }
 
 // ---- Discover tab ----
-// Browses TMDB's /discover/movie per genre: titles released in the past year, or upcoming.
+// Browses TMDB's /discover/movie per genre in three mutually exclusive tabs:
+//   theaters  = theatrical release in the region within DISCOVER_THEATER_WINDOW_DAYS and not yet on digital
+//   streaming = released in the past year and on any digital service in the region (subscription, free, rent, buy)
+//   upcoming  = primary release date after today
+// Each movie appears in exactly one tab (streaming > theaters > upcoming) and one genre (its primary genre).
 // Data is session-only (never saved) and refetched on page load or when stale.
 const DISCOVER_PAGES_PER_GENRE = 2;
 const DISCOVER_STALE_MS = 10 * 60 * 1000;
-const DISCOVER_CONCURRENCY = 6;
+const DISCOVER_CONCURRENCY = 8;
+const DISCOVER_THEATER_WINDOW_DAYS = 183;
+const DISCOVER_MODE_KEY = "cirrus.discoverMode";
+const DIGITAL_MONETIZATION_TYPES = "flatrate|free|ads|rent|buy";
+// Query kinds fetched for each tab. "theatersDigital" is the theatrical query restricted to titles
+// already on digital; fetching it to the same page depth as "theaters" lets us subtract it exactly.
+const DISCOVER_MODE_KINDS = {
+  theaters: ["theaters", "theatersDigital"],
+  streaming: ["streaming"],
+  upcoming: ["upcoming"],
+};
 const discoverModal = document.getElementById("discover-modal");
-let discoverMode = "released"; // released | upcoming
+let discoverMode = DISCOVER_MODE_KINDS[localStorage.getItem(DISCOVER_MODE_KEY)] ? localStorage.getItem(DISCOVER_MODE_KEY) : "theaters";
 let activeDiscoverId = null;
+
+function emptyDiscoverPools() {
+  return { theaters: new Map(), theatersDigital: new Map(), streaming: new Map(), upcoming: new Map() };
+}
+
 const discoverState = {
   token: 0,
   loading: false,
@@ -347,7 +366,9 @@ const discoverState = {
   total: 0,
   error: "",
   genres: [],
-  sections: { released: new Map(), upcoming: new Map() },
+  pools: emptyDiscoverPools(),
+  queries: new Map(), // `${kind}:${genreId}` -> { page, totalPages }
+  loadingMore: new Set(), // `${mode}:${genreId}`
   byId: new Map(),
 };
 
@@ -355,16 +376,33 @@ function isoDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function discoverDateRange(mode) {
-  const today = new Date();
-  if (mode === "upcoming") {
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    return { "primary_release_date.gte": isoDate(tomorrow) };
+function isoDaysFromToday(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return isoDate(date);
+}
+
+function discoverParams(kind) {
+  const region = settings.region || "US";
+  const today = isoDaysFromToday(0);
+  if (kind === "upcoming") return { "primary_release_date.gte": isoDaysFromToday(1) };
+  if (kind === "streaming") {
+    return {
+      "primary_release_date.gte": isoDaysFromToday(-365),
+      "primary_release_date.lte": today,
+      watch_region: region,
+      with_watch_monetization_types: DIGITAL_MONETIZATION_TYPES,
+    };
   }
-  const yearAgo = new Date(today);
-  yearAgo.setFullYear(today.getFullYear() - 1);
-  return { "primary_release_date.gte": isoDate(yearAgo), "primary_release_date.lte": isoDate(today) };
+  const theatrical = {
+    region,
+    with_release_type: "2|3",
+    "release_date.gte": isoDaysFromToday(-DISCOVER_THEATER_WINDOW_DAYS),
+    "release_date.lte": today,
+  };
+  return kind === "theatersDigital"
+    ? { ...theatrical, watch_region: region, with_watch_monetization_types: DIGITAL_MONETIZATION_TYPES }
+    : theatrical;
 }
 
 async function tmdbGet(path, params = {}, retried = false) {
@@ -379,27 +417,26 @@ async function tmdbGet(path, params = {}, retried = false) {
   return data;
 }
 
-async function fetchDiscoverPage(mode, genreId, page) {
+async function fetchDiscoverPage(kind, genreId, page) {
   const data = await tmdbGet("discover/movie", {
     with_genres: String(genreId),
     sort_by: "popularity.desc",
     include_adult: "false",
     include_video: "false",
     page: String(page),
-    ...discoverDateRange(mode),
+    ...discoverParams(kind),
   });
-  return { results: (data.results || []).filter((r) => r.poster_path), totalPages: Math.min(data.total_pages || 1, 500) };
+  return { results: data.results || [], totalPages: Math.min(data.total_pages || 1, 500) };
 }
 
-function mergeDiscoverResults(section, results) {
-  const seen = new Set(section.items.map((r) => r.id));
+function recordDiscoverPage(pools, queries, kind, genreId, page, { results, totalPages }) {
   for (const r of results) {
     discoverState.byId.set(r.id, r);
-    if (!seen.has(r.id)) {
-      seen.add(r.id);
-      section.items.push(r);
-    }
+    if (!pools[kind].has(r.id)) pools[kind].set(r.id, r);
   }
+  const key = `${kind}:${genreId}`;
+  const q = queries.get(key) || { page: 0, totalPages: 1 };
+  queries.set(key, { page: Math.max(q.page, page), totalPages });
 }
 
 async function runWithConcurrency(tasks, limit) {
@@ -425,23 +462,18 @@ async function loadDiscover() {
     const genreData = await tmdbGet("genre/movie/list");
     if (token !== discoverState.token) return;
     const genres = (genreData.genres || []).sort((a, b) => a.name.localeCompare(b.name));
-    const sections = { released: new Map(), upcoming: new Map() };
-    const byId = new Map();
+    const pools = emptyDiscoverPools();
+    const queries = new Map();
+    // Pages land out of order; buffer them so pools keep popularity order within each query.
+    const pageResults = [];
     let failures = 0;
     const tasks = [];
-    for (const mode of ["released", "upcoming"]) {
+    for (const kind of Object.keys(pools)) {
       for (const genre of genres) {
-        const section = { items: [], page: 0, totalPages: 1, loadingMore: false };
-        sections[mode].set(genre.id, section);
         for (let page = 1; page <= DISCOVER_PAGES_PER_GENRE; page++) {
           tasks.push(async () => {
             try {
-              const { results, totalPages } = await fetchDiscoverPage(mode, genre.id, page);
-              results.forEach((r) => byId.set(r.id, r));
-              section.pages = section.pages || [];
-              section.pages[page] = results;
-              section.totalPages = totalPages;
-              section.page = Math.max(section.page, page);
+              pageResults.push({ kind, genreId: genre.id, page, data: await fetchDiscoverPage(kind, genre.id, page) });
             } catch (e) {
               failures++;
             } finally {
@@ -455,17 +487,13 @@ async function loadDiscover() {
     discoverState.total = tasks.length;
     await runWithConcurrency(tasks, DISCOVER_CONCURRENCY);
     if (token !== discoverState.token) return;
-    // Pages finish out of order; stitch them back in popularity order.
-    for (const mode of ["released", "upcoming"]) {
-      sections[mode].forEach((section) => {
-        const pages = section.pages || [];
-        delete section.pages;
-        pages.forEach((results) => results && mergeDiscoverResults(section, results));
-      });
-    }
+    pageResults
+      .sort((a, b) => a.page - b.page)
+      .forEach(({ kind, genreId, page, data }) => recordDiscoverPage(pools, queries, kind, genreId, page, data));
     discoverState.genres = genres;
-    discoverState.sections = sections;
-    discoverState.byId = new Map([...discoverState.byId, ...byId]);
+    discoverState.pools = pools;
+    discoverState.queries = queries;
+    discoverState.loadingMore = new Set();
     discoverState.loadedAt = Date.now();
     if (failures === tasks.length) discoverState.error = "Couldn't reach TMDB. Try Refresh in a moment.";
   } catch (err) {
@@ -478,23 +506,64 @@ async function loadDiscover() {
   }
 }
 
+function discoverQueryHasMore(mode, genreId) {
+  const q = discoverState.queries.get(`${DISCOVER_MODE_KINDS[mode][0]}:${genreId}`);
+  return !!q && q.page < q.totalPages;
+}
+
 async function loadMoreDiscoverGenre(genreId) {
-  const section = discoverState.sections[discoverMode].get(genreId);
-  if (!section || section.loadingMore || section.page >= section.totalPages) return;
   const mode = discoverMode;
-  section.loadingMore = true;
+  const loadingKey = `${mode}:${genreId}`;
+  if (discoverState.loadingMore.has(loadingKey) || !discoverQueryHasMore(mode, genreId)) return;
+  const token = discoverState.token;
+  discoverState.loadingMore.add(loadingKey);
   renderLists();
   try {
-    const { results, totalPages } = await fetchDiscoverPage(mode, genreId, section.page + 1);
-    section.page += 1;
-    section.totalPages = totalPages;
-    mergeDiscoverResults(section, results);
+    // Advance every kind for this tab together so theatrical/digital stay at equal depth.
+    const fetched = await Promise.all(
+      DISCOVER_MODE_KINDS[mode].map(async (kind) => {
+        const q = discoverState.queries.get(`${kind}:${genreId}`) || { page: 0, totalPages: 1 };
+        if (q.page >= q.totalPages) return null;
+        return { kind, page: q.page + 1, data: await fetchDiscoverPage(kind, genreId, q.page + 1) };
+      })
+    );
+    if (token !== discoverState.token) return;
+    fetched.filter(Boolean).forEach(({ kind, page, data }) =>
+      recordDiscoverPage(discoverState.pools, discoverState.queries, kind, genreId, page, data)
+    );
   } catch (err) {
     alert("Couldn't load more titles: " + err.message);
   } finally {
-    section.loadingMore = false;
+    discoverState.loadingMore.delete(loadingKey);
     renderLists();
   }
+}
+
+// Resolves each fetched movie to exactly one tab, then one (primary) genre within it.
+function discoverTabItems(mode) {
+  const { pools } = discoverState;
+  const streaming = new Map([...pools.streaming, ...pools.theatersDigital]);
+  const usable = (r) => r.poster_path && (r.genre_ids || []).length;
+  if (mode === "streaming") return [...streaming.values()].filter(usable);
+  const theaters = [...pools.theaters.values()].filter((r) => !streaming.has(r.id));
+  if (mode === "theaters") return theaters.filter(usable);
+  const theaterIds = new Set(theaters.map((r) => r.id));
+  return [...pools.upcoming.values()].filter((r) => usable(r) && !streaming.has(r.id) && !theaterIds.has(r.id));
+}
+
+function discoverBuckets(mode) {
+  const genreIds = new Set(discoverState.genres.map((g) => g.id));
+  const buckets = new Map();
+  for (const r of discoverTabItems(mode)) {
+    const primary = r.genre_ids.find((id) => genreIds.has(id));
+    if (primary == null) continue;
+    if (!buckets.has(primary)) buckets.set(primary, []);
+    buckets.get(primary).push(r);
+  }
+  const byDate = (a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999");
+  const byPopularity = (a, b) => (b.popularity || 0) - (a.popularity || 0);
+  buckets.forEach((items) => items.sort(mode === "upcoming" ? byDate : byPopularity));
+  return buckets;
 }
 
 function findListMovieByTmdbId(tmdbId) {
@@ -536,12 +605,16 @@ function discoverStatusText() {
 }
 
 function renderDiscoverView() {
-  const modeBtn = (mode, label) =>
-    `<button type="button" class="view-switch__btn${discoverMode === mode ? " view-switch__btn--active" : ""}" data-discover-mode="${mode}">${label}</button>`;
+  const hasData = discoverState.loadedAt > 0;
+  const modeBtn = (mode, label) => {
+    const count = hasData ? ` <span class="discover-genre__count">${discoverTabItems(mode).length}</span>` : "";
+    return `<button type="button" class="view-switch__btn${discoverMode === mode ? " view-switch__btn--active" : ""}" data-discover-mode="${mode}">${label}${count}</button>`;
+  };
   const toolbar = `
     <div class="discover-toolbar">
-      <div class="view-switch discover-toolbar__modes" role="group" aria-label="Discover range">
-        ${modeBtn("released", "New releases · past year")}
+      <div class="view-switch discover-toolbar__modes" role="group" aria-label="Discover category">
+        ${modeBtn("theaters", "In theaters")}
+        ${modeBtn("streaming", "Streaming")}
         ${modeBtn("upcoming", "Coming soon")}
       </div>
       <span class="discover-status" id="discover-status">${escapeHtml(discoverStatusText())}</span>
@@ -554,16 +627,16 @@ function renderDiscoverView() {
   if (discoverState.error) {
     return `${toolbar}<p class="empty-state">Discover failed: ${escapeHtml(discoverState.error)}</p>`;
   }
-  const sections = discoverState.sections[discoverMode];
+  const buckets = discoverBuckets(discoverMode);
   const genreHtml = discoverState.genres
     .map((genre) => {
-      const section = sections.get(genre.id);
-      if (!section || !section.items.length) return "";
-      const items = discoverMode === "upcoming"
-        ? [...section.items].sort((a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999"))
-        : section.items;
-      const more = section.page < section.totalPages
-        ? `<button type="button" class="discover-more" data-genre-more="${genre.id}" ${section.loadingMore ? "disabled" : ""}>${section.loadingMore ? "Loading…" : "More →"}</button>`
+      const items = buckets.get(genre.id) || [];
+      const hasMore = discoverQueryHasMore(discoverMode, genre.id);
+      // Keep a genre visible when everything fetched so far was claimed by another tab/genre but TMDB has more.
+      if (!items.length && !hasMore) return "";
+      const loadingMore = discoverState.loadingMore.has(`${discoverMode}:${genre.id}`);
+      const more = hasMore
+        ? `<button type="button" class="discover-more" data-genre-more="${genre.id}" ${loadingMore ? "disabled" : ""}>${loadingMore ? "Loading…" : "More →"}</button>`
         : "";
       return `
         <section class="category">
@@ -582,6 +655,7 @@ function handleDiscoverClick(e) {
   const modeBtn = e.target.closest("[data-discover-mode]");
   if (modeBtn) {
     discoverMode = modeBtn.dataset.discoverMode;
+    localStorage.setItem(DISCOVER_MODE_KEY, discoverMode);
     renderLists();
     return;
   }
@@ -606,9 +680,12 @@ function openDiscoverModal(tmdbId) {
     .map((id) => (discoverState.genres.find((g) => g.id === id) || {}).name)
     .filter(Boolean);
   const isUpcoming = (r.release_date || "") > isoDate(new Date());
+  const tab = ["theaters", "streaming", "upcoming"].find((mode) => discoverTabItems(mode).some((item) => item.id === r.id));
+  const availability = { theaters: "In theaters only", streaming: "Available to stream, rent, or buy" }[tab] || "";
   document.getElementById("discover-title").textContent = r.title;
   document.getElementById("discover-meta").textContent = [
     r.release_date ? `${isUpcoming ? "Releases" : "Released"} ${formatReleaseDate(r.release_date)}` : "",
+    availability,
     genreNames.join(", "),
   ].filter(Boolean).join(" · ");
   document.getElementById("discover-overview").textContent = r.overview || "No description yet.";
@@ -1147,6 +1224,7 @@ document.getElementById("settings-btn").addEventListener("click", () => {
   settingsModal.classList.add("open");
 });
 document.getElementById("settings-close-btn").addEventListener("click", () => {
+  const previousDiscoverInputs = `${settings.tmdbKey}|${settings.region}`;
   settings.tmdbKey = document.getElementById("tmdb-key-input").value.trim();
   settings.omdbKey = document.getElementById("omdb-key-input").value.trim();
   settings.region = document.getElementById("region-input").value;
@@ -1154,6 +1232,8 @@ document.getElementById("settings-close-btn").addEventListener("click", () => {
   settingsModal.classList.remove("open");
   backfillWatchProviders();
   backfillSourcedRatings();
+  // Discover tabs depend on the key and region (theatrical/digital availability is regional).
+  if (`${settings.tmdbKey}|${settings.region}` !== previousDiscoverInputs) discoverState.loadedAt = 0;
   if (currentView === "discover") {
     if (settings.tmdbKey && !discoverState.loadedAt && !discoverState.loading) loadDiscover();
     else renderLists();
