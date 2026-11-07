@@ -125,7 +125,9 @@ been built, why, and non-obvious details worth knowing before changing anything.
     `{region, link, flatrate: [{name, logo}], rent: [...], buy: [...]}` sourced from TMDB's
     `/movie/{id}/watch/providers` endpoint (JustWatch data) for the configured region. Stale
     (wrong-region or never-fetched) entries are backfilled in the background on boot, after
-    import, and after a Settings region change — see `backfillWatchProviders()`.
+    import, and after a Settings region change — see `backfillWatchProviders()`. Saved
+    movies also re-fetch on every detail-modal open (`refreshWatchProvidersOnOpen()`),
+    updating the modal in place; `hydrateWatchProviders()` only saves when the data changed.
 - `cirrus.settings` — `{tmdbKey, omdbKey, region, discoverYears}`. `tmdbKey`/`omdbKey` optional; without a
   TMDB key, search, reviews, watch-provider availability, and auto-filled
   posters/overviews are unavailable, but manual add, personal ratings, notes, and watched

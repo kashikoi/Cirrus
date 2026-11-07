@@ -1276,16 +1276,31 @@ async function hydrateWatchProviders(movie) {
     if (!res.ok) return;
     const region = settings.region || "US";
     const entry = (data.results || {})[region];
-    movie.watchProviders = {
+    const next = {
       region,
       link: entry?.link || null,
       flatrate: (entry?.flatrate || []).map(mapWatchProvider),
       rent: (entry?.rent || []).map(mapWatchProvider),
       buy: (entry?.buy || []).map(mapWatchProvider),
     };
-    saveMovies();
+    // Skip the save when unchanged so per-open refreshes don't trigger a cloud sync.
+    if (JSON.stringify(next) === JSON.stringify(movie.watchProviders)) return false;
+    movie.watchProviders = next;
+    if (movies.includes(movie)) saveMovies();
+    return true;
   } catch (e) {
     // offline or blocked request — leave watch providers as-is
+  }
+  return false;
+}
+
+// Re-checks availability each time a saved movie's detail modal opens, since streaming
+// services change over time; updates the modal in place if it's still showing that movie.
+async function refreshWatchProvidersOnOpen(movie) {
+  if (!settings.tmdbKey || !movie.tmdbId || !movies.includes(movie)) return;
+  const changed = await hydrateWatchProviders(movie);
+  if (changed && activeDetailId === movie.id && detailModal.classList.contains("open")) {
+    document.getElementById("detail-watch-providers").innerHTML = watchProvidersDetailHtml(movie);
   }
 }
 
@@ -1391,6 +1406,7 @@ function openDetailModal(id) {
   renderDetailInfo(movie);
   renderStarInput();
   detailModal.classList.add("open");
+  refreshWatchProvidersOnOpen(movie);
 }
 
 // Read-only parts of the detail modal; re-run when a preview finishes hydrating
