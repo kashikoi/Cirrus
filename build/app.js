@@ -44,7 +44,7 @@ let cloudDataDirty = false;
 let movies = loadMovies();
 let settings = loadSettings();
 let activeDetailId = null;
-let currentView = localStorage.getItem(VIEW_KEY) || "genres"; // genres | priority | watched | discover
+let currentView = localStorage.getItem(VIEW_KEY) || "genres"; // genres | priority | backburner | watched | discover
 let currentSearchMode = "title"; // title | actor | director
 
 function loadMovies() {
@@ -267,6 +267,27 @@ function renderWatchedView(list) {
   return `<div class="line-list">${ordered.map(watchedItemHtml).join("")}</div>`;
 }
 
+function backBurnerItemHtml(movie) {
+  const genre = movie.genres && movie.genres.length ? movie.genres[0] : "Uncategorized";
+  const sub = [movie.year, mediaTypeLabel(movie), genre].filter(Boolean).join(" · ");
+  return `
+    <div class="line-item" data-id="${movie.id}">
+      ${lineItemThumb(movie)}
+      <div class="line-item__main">
+        <span class="line-item__title">${escapeHtml(movie.title)}</span>
+        <span class="line-item__sub">${escapeHtml(sub)}</span>
+      </div>
+      <div class="line-item__meta">${rtBadgeInline(movie)}</div>
+    </div>`;
+}
+
+function renderBackBurnerView(list) {
+  const ordered = [...list].sort((a, b) => (b.backBurnerAt || 0) - (a.backBurnerAt || 0) || a.title.localeCompare(b.title));
+  return `
+    <p class="list-hint">Maybe someday — set a movie's status back to Watchlist to bring it back.</p>
+    <div class="line-list">${ordered.map(backBurnerItemHtml).join("")}</div>`;
+}
+
 function renderLists() {
   ensurePriorities();
   const feed = document.getElementById("movie-feed");
@@ -291,6 +312,19 @@ function renderLists() {
 
   const watchlist = movies.filter((m) => m.status === "watchlist");
   const watched = movies.filter((m) => m.status === "watched");
+  const backBurner = movies.filter((m) => m.status === "backburner");
+
+  if (currentView === "backburner") {
+    if (!backBurner.length) {
+      empty.textContent = "Nothing on the back burner. Open a movie and set its status to Back Burner to park it here.";
+      empty.style.display = "block";
+      feed.innerHTML = "";
+      return;
+    }
+    empty.style.display = "none";
+    feed.innerHTML = renderBackBurnerView(backBurner);
+    return;
+  }
 
   if (currentView === "watched") {
     if (!watched.length) {
@@ -1490,7 +1524,9 @@ document.getElementById("detail-cancel-btn").addEventListener("click", () => det
 document.getElementById("detail-save-btn").addEventListener("click", () => {
   const movie = getDetailMovie(activeDetailId);
   if (!movie) return;
-  movie.status = document.getElementById("detail-status").value;
+  const newStatus = document.getElementById("detail-status").value;
+  if (newStatus === "backburner" && movie.status !== "backburner") movie.backBurnerAt = Date.now();
+  movie.status = newStatus;
   movie.watchedDate = movie.status === "watched" ? document.getElementById("detail-watched-date").value || new Date().toISOString().slice(0, 10) : null;
   movie.notes = document.getElementById("detail-notes").value;
   movie.personalRating = draftRating;

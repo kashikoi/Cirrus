@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=2026.11.06.1" />
+  <link rel="stylesheet" href="styles.css?v=2026.11.06.2" />
   <script>
     // Set the theme class before first paint so there's no light-mode flash.
     try {
@@ -338,6 +338,7 @@
     <div class="view-switch" role="tablist" aria-label="Movie view">
       <button type="button" class="view-switch__btn" data-view="genres" role="tab">Genres</button>
       <button type="button" class="view-switch__btn" data-view="priority" role="tab">Priority</button>
+      <button type="button" class="view-switch__btn" data-view="backburner" role="tab">Back Burner</button>
       <button type="button" class="view-switch__btn" data-view="watched" role="tab">Watched</button>
       <button type="button" class="view-switch__btn" data-view="discover" role="tab">Discover</button>
     </div>
@@ -374,6 +375,7 @@
             <span>Status</span>
             <select id="detail-status">
               <option value="watchlist">Watchlist</option>
+              <option value="backburner">Back Burner</option>
               <option value="watched">Watched</option>
             </select>
           </label>
@@ -539,12 +541,12 @@
     <div class="modal__card about-modal__card" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
       <img class="about-modal__mark" src="icon.svg" alt="" width="56" height="56" />
       <h3 id="about-modal-title">Cirrus</h3>
-      <p class="about-modal__version">Version 2026.11.06.1</p>
+      <p class="about-modal__version">Version 2026.11.06.2</p>
       <p class="about-modal__copy">A high-altitude view of every film you watch.</p>
       <button type="button" class="btn btn--primary" id="about-close-btn">Close</button>
     </div>
   </div>
 
-  <script src="app.js?v=2026.11.06.1"></script>
+  <script src="app.js?v=2026.11.06.2"></script>
 </body>
 </html>

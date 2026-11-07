@@ -14,8 +14,8 @@ been built, why, and non-obvious details worth knowing before changing anything.
   rating against sourced ratings (TMDB/IMDb/Rotten Tomatoes/Metacritic) and a few written
   reviews — so years later you never have to wonder whether you've seen something, or what
   you thought of it.
-- UI: a single page with a four-way view switcher (`.view-switch`, state in
-  `cirrus.view`): **Genres**, **Priority**, **Watched**, **Discover**.
+- UI: a single page with a five-way view switcher (`.view-switch`, state in
+  `cirrus.view`): **Genres**, **Priority**, **Back Burner**, **Watched**, **Discover**.
   - Genres + Priority are two views of the *watchlist* (`status === "watchlist"`):
     Genres groups cards into genre-category sections (from TMDB's `genres`, falling back to
     "Uncategorized"); Priority is a draggable line-item list (`.line-item--draggable`)
@@ -23,6 +23,10 @@ been built, why, and non-obvious details worth knowing before changing anything.
     (`ensurePriorities()` backfills missing values; `commitPriorityOrder()` saves new order).
   - Watched is its own view (`status === "watched"`), a line-item list sorted by
     `watchedDate` desc showing your star rating + RT badge + date.
+  - Back Burner (`status === "backburner"`) holds "maybe someday" titles kept out of
+    Genres/Priority: a line-item list sorted by `backBurnerAt` desc (stamped by the detail
+    Save when the status changes to backburner). Setting it back to Watchlist restores its
+    old `priority` rank.
   - NOTE: watched movies are no longer shown in the genre view — the views are now split by
     status. `.movie-card--watched` + `.movie-card__watched-badge` are reused by Discover to
     mark titles already on the user's list.
@@ -94,7 +98,7 @@ been built, why, and non-obvious details worth knowing before changing anything.
 - `cirrus.movies` — array of movie/series objects:
   `{id, tmdbId, mediaType, seriesType, title, year, poster, overview, status, personalRating,
   watchedDate, notes, imdbId, genres: [string], sourcedRatings: [{source, value}],
-  reviews: [{author, content}], watchProviders, priority, addedAt}`
+  reviews: [{author, content}], watchProviders, priority, addedAt, backBurnerAt}`
   - `priority` is a 0-based rank among watchlist movies, set by the Priority view's
     drag-to-reorder (backfilled by `ensurePriorities()` for older data).
   - `mediaType` is `"movie"` or `"tv"` — the app tracks both films and TV series/mini-series
@@ -111,8 +115,8 @@ been built, why, and non-obvious details worth knowing before changing anything.
   - Title search uses `/search/multi` (movies + TV mixed, filtered by `media_type`); actor/
     director search uses `/person/{id}/combined_credits`. `normalizeResult()` flattens any
     movie/tv/multi result into `{id, mediaType, title, year, poster_path}` for rendering.
-  - `status` is `"watchlist"` or `"watched"` — affects only the watched-card highlight, not
-    which genre section a movie appears in (see "UI" above).
+  - `status` is `"watchlist"`, `"backburner"`, or `"watched"` — picks which view lists it
+    (see "UI" above).
   - `genres` is the movie's TMDB genre names; the card is filed under the first one (or
     "Uncategorized" if empty). Backfilled for pre-existing movies by `backfillTmdbDetails()`.
   - `personalRating` is 0–5 (stars).

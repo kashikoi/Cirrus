@@ -1809,4 +1809,15 @@ html.dark .movie-card__poster {
   .detail__poster {
     width: 120px;
   }
+
+  .view-switch {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .view-switch__btn {
+    padding: 7px 7px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
 }
